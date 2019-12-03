@@ -1,6 +1,8 @@
 plugins {
     id 'java'
     id 'application'
+    id 'maven'
+    id 'maven-publish'
 }
 
 group 'com.mulinlab'
@@ -24,7 +26,7 @@ dependencies {
 
     testCompile group: 'junit', name: 'junit', version: '4.12'
     compile files('src/libs/VarNote-1.1-SNAPSHOT.jar')
-//    compile files('src/libs/ProxyFinder-0.2.jar')
+    compile files('src/libs/ProxyFinder-0.2.jar')
 //    compile fileTree(dir: 'src/libs', includes: ['*.jar'])
 }
 
@@ -62,3 +64,15 @@ jar {
     exclude '**/*.RSA'  
 
 }
+
+uploadArchives {
+    repositories.mavenDeployer {
+        snapshotRepository(url: "http://39.106.221.241:8081/repository/maven-snapshots") {//快照
+            authentication(userName: 'admin', password: 'admin123')
+        }
+        repository(url: "http://39.106.221.241:8081/repository/maven-releases") {//RELEASE
+            authentication(userName: 'admin', password: 'admin123')
+        }
+    }
+}
+
