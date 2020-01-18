@@ -1,11 +1,15 @@
 package org.mulinlab.variantsampler.utils.enumset;
 
+import org.apache.commons.lang3.StringUtils;
 import org.mulinlab.variantsampler.utils.GP;
 
+import java.util.ArrayList;
+import java.util.List;
+
 public enum LD {
-    GT1(0, "ld>0.1"), GT2(1, "ld>0.2"), GT3(2, "ld>0.3"), GT4(3, "ld>0.4"),
-    GT5(4, "ld>0.5"), GT6(5, "ld>0.6"), GT7(6, "ld>0.7"), GT8(7, "ld>0.8"),
-    GT9(8, "ld>0.9");
+    LD1(0, "ld>0.1"), LD2(1, "ld>0.2"), LD3(2, "ld>0.3"), LD4(3, "ld>0.4"),
+    LD5(4, "ld>0.5"), LD6(5, "ld>0.6"), LD7(6, "ld>0.7"), LD8(7, "ld>0.8"),
+    LD9(8, "ld>0.9");
 
     private final int idx;
     private final String title;
@@ -38,5 +42,14 @@ public enum LD {
             }
             return GP.DEFAULT_GENE_LD.getIdx();
         }
+    }
+
+    public static String desc() {
+        List<String> s = new ArrayList<>();
+        for (LD d: LD.values()) {
+            s.add(d.toString() + " means " + d.getTitle());
+        }
+
+        return StringUtils.join(s, ", ");
     }
 }

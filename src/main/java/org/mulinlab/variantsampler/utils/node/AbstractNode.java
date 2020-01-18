@@ -1,5 +1,6 @@
 package org.mulinlab.variantsampler.utils.node;
 
+import de.charite.compbio.jannovar.annotation.VariantEffect;
 import org.mulinlab.varnote.utils.node.LocFeature;
 
 public abstract class AbstractNode {
@@ -55,4 +56,5 @@ public abstract class AbstractNode {
     public int getPos() {
         return locFeature.beg;
     }
+
 }

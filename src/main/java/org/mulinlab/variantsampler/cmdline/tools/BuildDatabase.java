@@ -34,6 +34,6 @@ public final class BuildDatabase extends CMDProgram {
     @Override
     protected int doWork() {
         RunFactory.buildDatabase(config.getAbsolutePath(), population, thread);
-        return -1;
+        return 0;
     }
 }

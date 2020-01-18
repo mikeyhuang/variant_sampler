@@ -1,19 +1,22 @@
 package org.mulinlab.variantsampler.index;
 
 import htsjdk.samtools.util.BlockCompressedInputStream;
-import htsjdk.tribble.util.LittleEndianInputStream;
 import org.mulinlab.variantsampler.utils.GP;
 import org.mulinlab.variantsampler.utils.node.DBNode;
 import org.mulinlab.variantsampler.utils.MafAddress;
 import org.mulinlab.variantsampler.utils.Pair;
-import org.mulinlab.variantsampler.utils.sort.DTCTSort;
 import org.mulinlab.variantsampler.utils.sort.MAFSort;
 import org.mulinlab.varnote.exceptions.InvalidArgumentException;
+import org.mulinlab.varnote.operations.decode.TABLocCodec;
+import org.mulinlab.varnote.operations.decode.VCFLocCodec;
 import org.mulinlab.varnote.operations.readers.db.VannoMixReader;
 import org.mulinlab.varnote.operations.readers.db.VannoReader;
 import org.mulinlab.varnote.utils.database.index.TbiIndex;
+import org.mulinlab.varnote.utils.format.Format;
 import org.mulinlab.varnote.utils.gz.MyBlockCompressedOutputStream;
 import org.mulinlab.varnote.utils.gz.MyEndianOutputStream;
+import org.mulinlab.varnote.utils.node.LocFeature;
+
 import java.io.File;
 import java.io.IOException;
 import java.util.*;
@@ -33,6 +36,7 @@ public final class IndexMaf {
     private List<DBNode> mafList;
     private Map<Integer, MafAddress> mafAddrsMap;
     private Map<Integer, Map<Integer, MafAddress>> chrMap;
+    private final TABLocCodec tabLocCodec;
 
     public static String getMafPath(final String filePath) {
         return filePath.replace(".gz", MAF);
@@ -48,6 +52,8 @@ public final class IndexMaf {
         in = new BlockCompressedInputStream(new File(filePath));
         out = new MyEndianOutputStream(new MyBlockCompressedOutputStream(getMafPath(filePath)));
         outIdx = new MyEndianOutputStream(new MyBlockCompressedOutputStream(getMafIdxPath(filePath)));
+
+        this.tabLocCodec = GP.getDefaultDecode( true);
 
         chrMap = new HashMap<>();
         for (int i=GP.FROM_CHROM; i<=GP.TO_CHROM; i++) {
@@ -100,9 +106,17 @@ public final class IndexMaf {
                     outIdx.writeLong(address.getLdBuddiesAddress()[j]);
                 }
 
-                outIdx.writeInt(address.getRoadmapAnno().length);
-                for (int j = 0; j < address.getRoadmapAnno().length; j++) {
-                    outIdx.writeLong(address.getRoadmapAnno()[j]);
+                outIdx.writeInt(address.getRoadmapAnnoAddress().length);
+                for (int j = 0; j < address.getRoadmapAnnoAddress().length; j++) {
+                    outIdx.writeLong(address.getRoadmapAnnoAddress()[j]);
+                }
+
+                outIdx.writeLong(address.getCatAddress());
+                outIdx.writeLong(address.getTissueAddress());
+
+                outIdx.writeInt(address.getGcAddress().length);
+                for (int j = 0; j < address.getGcAddress().length; j++) {
+                    outIdx.writeLong(address.getGcAddress()[j]);
                 }
             }
         }
@@ -113,10 +127,15 @@ public final class IndexMaf {
         mafAddress.setMafAddress(out.getOut().getFilePointer());
 
         out.writeInt(mafList.size());
+        String refalt;
         for (DBNode dbNode: mafList) {
+            out.writeInt(dbNode.getLocFeature().beg);
+            refalt = dbNode.getLocFeature().ref + "," + dbNode.getLocFeature().alt;
+            out.writeInt(refalt.length());
+            out.writeBytes(refalt);
+
             out.writeInt(dbNode.getDtct());
             out.writeFloat((float) dbNode.getMafOrg());
-            out.writeLong(dbNode.getAddress());
         }
 
         for (int i=0; i<GP.GENE_DIS_SIZE; i++) {
@@ -149,13 +168,41 @@ public final class IndexMaf {
             }
         }
 
-        Pair<Long, Long> cellMark;
+        long[] cellMark;
         for (int i=0; i<GP.ROADMAP_SIZE; i++) {
-            mafAddress.setRoadmapAnno(out.getOut().getFilePointer(), i);
+            mafAddress.setLdBuddiesAddress(out.getOut().getFilePointer(), i);
             for (DBNode dbNode: mafList) {
                 cellMark = dbNode.getCellMarks()[i];
-                out.writeLong(cellMark.getKey());
-                out.writeLong(cellMark.getValue());
+                if(cellMark != null && cellMark.length > 0) {
+                    out.writeByte(cellMark.length);
+                    for (long cell: cellMark) {
+                        out.writeLong(cell);
+                    }
+                } else {
+                    out.writeByte(0);
+                }
+            }
+        }
+
+        mafAddress.setCatAddress(out.getOut().getFilePointer());
+        for (DBNode dbNode: mafList) {
+            out.writeByte(dbNode.getCategory());
+        }
+
+        mafAddress.setTissueAddress(out.getOut().getFilePointer());
+        for (DBNode dbNode: mafList) {
+            if(dbNode.getTissueAnno() == 0) {
+                out.writeByte(0);
+            } else {
+                out.writeByte(1);
+                out.writeLong(dbNode.getTissueAnno());
+            }
+        }
+
+        for (int i = 0; i < GP.GC_SIZE; i++) {
+            mafAddress.setGcAddress(out.getOut().getFilePointer(), i);
+            for (DBNode dbNode: mafList) {
+                out.writeByte(dbNode.getGc()[i]);
             }
         }
 
@@ -168,12 +215,15 @@ public final class IndexMaf {
 
         String line;
         DBNode dbNode;
+        LocFeature locFeature;
+
         long filePointer = in.getFilePointer();
         while ((line = in.readLine()) != null) {
-            dbNode = new DBNode(line.split("\t"));
+            locFeature = tabLocCodec.decode(line);
+            dbNode = new DBNode(locFeature);
 
             if(!dbNode.getLocFeature().chr.equals(chr)) break;
-            if(dbNode.getMaf() == maf) {
+            if((dbNode.getMafOrg() > GP.MAF_FILTER) && (dbNode.getMaf() == maf)) {
                 dbNode.setAddress(filePointer);
                 dbNode.decodeOthers();
                 mafList.add(dbNode);

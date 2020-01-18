@@ -32,6 +32,6 @@ public final class BuildIndex extends CMDProgram {
         } catch (IOException e) {
             e.printStackTrace();
         }
-        return -1;
+        return 0;
     }
 }

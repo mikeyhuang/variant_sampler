@@ -80,7 +80,10 @@ public final class DistanceComputer {
             }
         }
 
-        return findClosest(pos, results).getKey();
+        Pair<Integer, String> pair = findClosest(pos, results);
+//        System.out.println(pair.getValue());
+
+        return pair.getKey();
 //        System.out.println(chr + "_" + pos + "\t" + r.getKey() + "\t" + r.getValue());
     }
 

@@ -1,8 +1,10 @@
 package org.mulinlab.variantsampler.cmdline.tools;
 
 import org.broadinstitute.barclay.argparser.Argument;
+import org.broadinstitute.barclay.argparser.ArgumentCollection;
 import org.broadinstitute.barclay.argparser.CommandLineProgramProperties;
 import org.mulinlab.variantsampler.cmdline.CMDProgram;
+import org.mulinlab.variantsampler.cmdline.InputFileArgumentCollection;
 import org.mulinlab.variantsampler.cmdline.programGroup.QueryProgramGroup;
 import org.mulinlab.variantsampler.utils.GP;
 import org.mulinlab.variantsampler.utils.QueryParam;
@@ -18,62 +20,97 @@ import java.io.IOException;
 public final class Query extends CMDProgram {
 
     static final String USAGE_SUMMARY = "Query";
-    static final String USAGE_DETAILS =
-            "\n\nUsage example:" +
-                    "\n" +
-                    "java -jar " + GlobalParameter.PRO_NAME + ".jar Query -Q input.sort.txt -D EUR.gz \n" ;
+    static final String USAGE_DETAILS = "\n\nUsage example:" + "java -jar " + GlobalParameter.PRO_NAME + ".jar Query -Q input.sort.txt \n";
 
-    @Argument(fullName = "Database", shortName = "D", doc = "The database file.", optional = false)
+
+    ////File options
+    @ArgumentCollection()
+    protected final InputFileArgumentCollection inputArguments = new InputFileArgumentCollection();
+
+    @Argument(fullName = "Database", shortName = "D", doc = "The database file.")
     private File databaseFile = null;
 
-    @Argument(fullName = "Query", shortName = "Q", doc = "The query file.", optional = false)
-    private File queryFile = null;
+    @Argument(fullName = "OutPath", shortName = "O", doc = "The output folder path.", optional = true)
+    private String outPath = null;
 
-    @Argument(fullName = "Output", shortName = "O", doc = "The output file.", optional = true)
-    private File outFile = null;
 
-    @Argument(fullName = "GDistance", shortName = "GP", doc = "Gene density of physical distance.", optional = true)
+    ////Basic options
+    @Argument(fullName = "isCrossChr", shortName = "CC", doc = "Indicator of sampling across chromosomes or not.", optional = true)
+    private Boolean isCrossChr = false;
+
+    @Argument(fullName = "excludeInput", shortName = "EI", doc = "Indicator to exclude input SNPs from matched SNPs or not.", optional = true)
+    private Boolean excludeInput = true;
+
+    @Argument(fullName = "vriantTypeSpecific", shortName = "VFS", doc = "Indicator of doing variant type specific sampling or not. i.e. sample indels for indels, snps for snps", optional = true)
+    private Boolean vriantTypeSpecific = true;
+
+    @Argument(fullName = "controlNumber", shortName = "SN", doc = "Sample control number", optional = true)
+    private int samplerNumber = 1;
+
+    @Argument(fullName = "annoNumber", shortName = "AN", doc = "Annotation number", optional = true)
+    private int annoNumber = 1;
+
+
+    ////Annotation options
+    @Argument(fullName = "MAFDeviation", shortName = "MD", doc = "Deviation range of MAF. Input variant MAF ± MAF deviation range. (D1 means ±0.01, D2 means ±0.02, D3 means ±0.03, D4 means ±0.04, D5 means ±0.05, D6 means ±0.06, D7 means ±0.07, D8 means ±0.08, D9 means ±0.09, D10 means ±0.1)")
+    private MAFDeviation mafDevia = GP.DEFAULT_MAF_DEVIATION;
+
+    @Argument(fullName = "disDeviation", shortName = "DD", doc = "Deviation range of distance to closest transcription start site (DTCT). Input variant DTCT ± DTCT deviation range.", optional = true)
+    private int disDevia = GP.DEFAULT_DIS_DEVIATION;
+
+    @Argument(fullName = "geneDeviation", shortName = "GD", doc = "Deviation range of gene density number.", optional = true)
+    private int geneDevia = GP.DEFAULT_GENE_DEVIATION;
+
+    @Argument(fullName = "ldBuddiesDeviation", shortName = "LDD", doc = "Deviation range of ld buddies number.", optional = true)
+    private int ldBuddiesDevia = GP.DEFAULT_LD_BUDDIES_DEVIATION;
+
+    @Argument(fullName = "GeneInDis", shortName = "GP", doc = "Physical distance cutoff to define gene density of variants. (KB100 means distance in 100KB, KB200 means distance in 200KB, KB300 means distance in 300KB, KB400 means distance in 400KB, KB500 means distance in 500KB, KB600 means distance in 600KB, KB700 means distance in 700KB, KB800 means distance in 800KB, KB900 means distance in 900KB, KB1000 means distance in 1M).", optional = true)
     private GeneInDis geneInDis = GP.DEFAULT_GENE_DIS;
 
-    @Argument(fullName = "GeneInLD", shortName = "GLD", doc = "Gene density of LD SNPs.", optional = true)
+    @Argument(fullName = "GeneInLD", shortName = "GLD", doc = "LD cutoff to define gene density of variants. (LD1 means ld>0.1, LD2 means ld>0.2, LD3 means ld>0.3, LD4 means ld>0.4, LD5 means ld>0.5, LD6 means ld>0.6, LD7 means ld>0.7, LD8 means ld>0.8, LD9 means ld>0.9).", optional = true)
     private LD geneInLD = GP.DEFAULT_GENE_LD;
 
-    @Argument(fullName = "LDBuddies", shortName = "LDB", doc = "LD buddies .", optional = true)
+    @Argument(fullName = "LDBuddies", shortName = "LDB", doc = "LD cutoff to define LD buddies. (LD1 means ld>0.1, LD2 means ld>0.2, LD3 means ld>0.3, LD4 means ld>0.4, LD5 means ld>0.5, LD6 means ld>0.6, LD7 means ld>0.7, LD8 means ld>0.8, LD9 means ld>0.9).", optional = true)
     private LD ldBuddies = GP.DEFAULT_LD_BUDDIES;
 
-    @Argument(fullName = "MAFRange", shortName = "MR", doc = "MAF Range.", optional = false)
-    private MAFRange mafRange = GP.DEFAULT_MAF_RANGE;
 
-    @Argument(fullName = "DisRange", shortName = "DR", doc = "Range of distance to closest transcription start site.", optional = true)
-    private int disRange = GP.DEFAULT_DIS_RANGE;
 
-    @Argument(fullName = "GeneInDisRange", shortName = "GDR", doc = "Range of gene in distance.", optional = true)
-    private int geneInDisRange = GP.DEFAULT_GENE_DIS_RANGE;
-
-    @Argument(fullName = "GeneInLDRange", shortName = "GLR", doc = "Range of gene in ld.", optional = true)
-    private int geneInLDRange = GP.DEFAULT_GENE_LD_RANGE;
-
-    @Argument(fullName = "ldBuddiesRange", shortName = "LR", doc = "Range of ld buddies.", optional = true)
-    private int ldBuddiesRange = GP.DEFAULT_LD_BUDDIES_RANGE;
-
-    @Argument(fullName = "CellType", shortName = "CT", doc = "Roadmap cell type.", optional = true)
+    @Argument(fullName = "CellType", shortName = "CT", doc = "Roadmap cell type. This should be supplied with `-M,--Mark`", optional = true)
     private CellType cellType = null;
 
-    @Argument(fullName = "Marker", shortName = "M", doc = "Roadmap cell type marker.", optional = true)
+    @Argument(fullName = "Mark", shortName = "M", doc = "Roadmap cell type specific epigenomic mark. This should be supplied with `-CT,--CellType`", optional = true)
     private Marker marker = null;
+
+    @Argument(fullName = "Tissue", shortName = "TS", doc = "Match eQTL in tissue.", optional = true)
+    private TissueType tissueType = null;
+
+    @Argument(fullName = "RegionMatch", shortName = "RM", doc = "Indicator to match variant region or not. The types of variant region are exonic + splicing altering, noncoding and others.", optional = true)
+    private boolean regionMatch = false;
+
+
+    @Argument(fullName = "GCType", shortName = "GCT", doc = "Distance range to compute GC content(BP100 means ±100bp, BP200 means ±200bp, BP300 means ±300bp, BP400 means ±400bp, BP500 means ±500bp).")
+    private GCType gcType = null;
+
+    @Argument(fullName = "GCDeviation", shortName = "GCD", doc = "Deviation range of GC. Input GC content ± GC deviation range. (D1 means ±0.01, D2 means ±0.02, D3 means ±0.03, D4 means ±0.04, D5 means ±0.05, D6 means ±0.06, D7 means ±0.07, D8 means ±0.08, D9 means ±0.09, D10 means ±0.1)")
+    private GCDeviation gcDeviation = GP.DEFAULT_GC_DEVIATION;
 
     @Override
     protected int doWork() {
         try {
-            QueryParam queryParam = new QueryParam(GeneInDis.getIdx(geneInDis), LD.getIdx(geneInLD), LD.getIdx(ldBuddies), Marker.getIdx(marker), CellType.getIdx(cellType),
-                    mafRange, disRange, geneInDisRange, geneInLDRange, ldBuddiesRange);
+            QueryParam queryParam = new QueryParam(inputArguments.getFormat(inputArguments.getQueryFilePath(), true), GeneInDis.getIdx(geneInDis), LD.getIdx(geneInLD), LD.getIdx(ldBuddies), Marker.getIdx(marker), CellType.getIdx(cellType),
+                    mafDevia, disDevia, geneDevia, ldBuddiesDevia, regionMatch, TissueType.getIdx(tissueType),  GCType.getIdx(gcType), gcDeviation);
+            queryParam.setVariantTypeSpecific(vriantTypeSpecific);
+            queryParam.setCrossChr(isCrossChr);
+            queryParam.setExcludeInput(excludeInput);
+            queryParam.setSamplerNumber(samplerNumber);
+            queryParam.setAnnoNumber(annoNumber);
 
-            org.mulinlab.variantsampler.query.Query query = new org.mulinlab.variantsampler.query.Query(queryFile.getAbsolutePath(), databaseFile.getAbsolutePath(), queryParam, outFile == null ? null : outFile.getAbsolutePath());
+            org.mulinlab.variantsampler.query.Query query = new org.mulinlab.variantsampler.query.Query(inputArguments.getQueryFilePath(), databaseFile.getAbsolutePath(), queryParam, outPath);
             query.doQuery();
             query.close();
         } catch (IOException e) {
             e.printStackTrace();
         }
-        return -1;
+        return 0;
     }
 }

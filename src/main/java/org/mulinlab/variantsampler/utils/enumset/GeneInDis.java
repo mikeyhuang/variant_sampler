@@ -1,6 +1,10 @@
 package org.mulinlab.variantsampler.utils.enumset;
 
+import org.apache.commons.lang3.StringUtils;
 import org.mulinlab.variantsampler.utils.GP;
+
+import java.util.ArrayList;
+import java.util.List;
 
 public enum GeneInDis {
     KB100(0, "100KB"), KB200(1, "200KB"),
@@ -40,5 +44,14 @@ public enum GeneInDis {
             }
             return GP.DEFAULT_GENE_DIS.getIdx();
         }
+    }
+
+    public static String desc() {
+        List<String> s = new ArrayList<>();
+        for (GeneInDis d: GeneInDis.values()) {
+            s.add(d.toString() + " means distance in " + d.getTitle());
+        }
+
+        return StringUtils.join(s, ", ");
     }
 }

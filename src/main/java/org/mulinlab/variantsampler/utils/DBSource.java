@@ -1,10 +1,8 @@
 package org.mulinlab.variantsampler.utils;
 
-import org.apache.commons.cli.MissingArgumentException;
-import org.ini4j.InvalidFileFormatException;
+import org.mulinlab.varnote.exceptions.InvalidArgumentException;
 import org.mulinlab.varnote.filters.iterator.NoFilterIterator;
 import org.mulinlab.varnote.utils.enumset.FileType;
-
 import java.util.HashMap;
 import java.util.Map;
 
@@ -16,16 +14,22 @@ public final class DBSource {
     public static final String ROADMAP = "roadmap";
     public static final String DB1000G = "1000G";
     public static final String GENCODE_GENE = "gene_file";
-    public static final String EUR_LD_DB = "1000G_eur";
-    public static final String EAS_LD_DB = "1000G_eas";
-    public static final String AFR_LD_DB = "1000G_afr";
+    public static final String BITFILE = "bit_file";
+    public static final String SERPATH = "ser_path";
+    public static final String GENOME = "genome";
     public static final String OUT_DIR = "output_dir";
+    public static final String VF_PATH = "vf_path";
+    public static final String TISSUE_LIST = "tissue_list";
+    public static final String TISSUE_PATH = "tissue_path";
+    public static final String GC_PATH = "gc_path";
+    public static final String LD_WINDOW = "ld_window";
+    public static final String MAF_CUTOFF = "maf_cutoff";
 
 
-    private final String[] required = new String[]{ROADMAP, DB1000G, GENCODE_GENE, EUR_LD_DB, EAS_LD_DB, AFR_LD_DB, OUT_DIR};
+    private final String[] required = new String[]{ROADMAP, DB1000G, GENCODE_GENE, BITFILE, SERPATH, GENOME, OUT_DIR, VF_PATH, TISSUE_LIST, TISSUE_PATH, GC_PATH, LD_WINDOW, MAF_CUTOFF};
     private final Map<String, String> srcMap;
 
-    public DBSource(final String srcFile) throws MissingArgumentException {
+    public DBSource(final String srcFile) throws InvalidArgumentException {
         srcMap = new HashMap<>();
         for (String src: required) {
             srcMap.put(src, "");
@@ -43,7 +47,7 @@ public final class DBSource {
 
         for (String src: required) {
             if(srcMap.get(src).equals("")) {
-                throw new MissingArgumentException(String.format("%s database is missing.", src));
+                throw new InvalidArgumentException(String.format("%s database is missing.", src));
             }
         }
         reader.close();
@@ -63,7 +67,15 @@ public final class DBSource {
         }
     }
 
-    public String getDatabasePath(final String dbName) {
+    public String getVal(final String dbName) {
         return srcMap.get(dbName);
+    }
+
+    public double getValDouble(final String dbName) {
+        return Double.parseDouble(srcMap.get(dbName));
+    }
+
+    public int getValInt(final String dbName) {
+        return Integer.parseInt(srcMap.get(dbName));
     }
 }

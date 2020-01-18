@@ -1,138 +1,113 @@
 package org.mulinlab.variantsampler.database;
 
-import cern.colt.matrix.tdouble.DoubleMatrix2D;
-import htsjdk.samtools.util.StringUtil;
-import nl.harmjanwestra.utilities.legacy.genetica.containers.Pair;
-import nl.harmjanwestra.utilities.vcf.VCFVariant;
-import org.mulinlab.variantsampler.utils.GP;
-import org.mulinlab.varnote.operations.readers.db.VannoMixReader;
-import org.mulinlab.varnote.operations.readers.db.VannoReader;
-import org.mulinlab.varnote.utils.node.LocFeature;
 
+import org.mulinlab.variantsampler.utils.GP;
+import org.mulinlab.variantsampler.utils.Pair;
+import org.mulinlab.varnote.operations.index.Variant;
+import org.mulinlab.varnote.operations.readers.gt1000g.VannoGTReader;
 import java.io.IOException;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
-import static java.lang.Double.isNaN;
 
 public final class LDComputer {
 
-    private int distance = GP.LD_DISTANCE;
-    private int LAST_END = 2;
     private Integer[] ldBuddies;
-    private org.mulinlab.variantsampler.utils.Pair<Integer, Integer>[] posRange;
+    private Pair<Integer, Integer>[] posRange;
 
+    private Map<String, Integer> variantMap;
+    private List<Variant> variants;
 
-    private final VannoReader eurReader;
-    private Map<String, Variant> variantsMap;
-    private String lastChr = "";
+    private int beg = 0, end = 0;
+    private String currentChr = "";
+    private int ldDistance = 100*1000, step = 1000 * 1000;
+    private double cufoff = 0.1;
+
+    VannoGTReader gtReader;
 
     public LDComputer(final String gtDatabase) throws IOException {
-        this.eurReader = new VannoMixReader(gtDatabase);
+        this.gtReader = new VannoGTReader(gtDatabase);
+        this.gtReader.setLdDistance(ldDistance/1000);
+
         ldBuddies = new Integer[GP.LD_BUDDIES_SIZE];
-        posRange = new org.mulinlab.variantsampler.utils.Pair[GP.GENE_LD_SIZE];
+        posRange = new Pair[GP.GENE_LD_SIZE];
 
         for (int i = 0; i < ldBuddies.length; i++) {
             ldBuddies[i] = new Integer(0);
         }
 
         for (int i = 0; i < posRange.length; i++) {
-            posRange[i] = new org.mulinlab.variantsampler.utils.Pair(-1, -1);
+            posRange[i] = new Pair(-1, -1);
         }
     }
 
     public void close() {
-        eurReader.close();
+        try {
+            gtReader.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
-    public org.mulinlab.variantsampler.utils.Pair<Integer[], org.mulinlab.variantsampler.utils.Pair<Integer, Integer>[]> compute(final String chr, final int pos, final String refalt) throws IOException {
-        if(!chr.equals(lastChr)) {
-            System.out.println(chr);
-            this.variantsMap = new HashMap<>();
-            LAST_END = 2;
-        } else {
-            removeUseless(pos);
+    public Pair<Integer[], Pair<Integer, Integer>[]> compute(final String chr, final int pos, final String ref, final String alt) throws IOException {
+        if(!chr.equals(currentChr)) {
+            beg = 0; end = 0;
+            currentChr = chr;
+
+            variantMap = new HashMap<>();
         }
 
-        lastChr = chr;
-        loadSNP(chr, pos);
-        resetLDBuddies();
+        try{
+            if(pos > (end - ldDistance)) {
+                variantMap = new HashMap<>();
+                beg = (pos - ldDistance) > 0 ? (pos - ldDistance) : 0;
+                end = pos + step;
 
-        final String queryID = getID(chr, pos, refalt);
-        if(variantsMap.get(queryID) != null) {
-            final Variant querySNPG = variantsMap.get(queryID);
-
-            double corr, rsq;
-            for (String key: variantsMap.keySet()) {
-                if(variantsMap.get(key) != null && !key.equals(queryID)) {
-                    corr = computeCorrelation(querySNPG.getMatrix(), variantsMap.get(key).getMatrix());
-
-                    if(!isNaN(corr)) {
-                        rsq = corr * corr;
-                        addLDBuddies(rsq, variantsMap.get(key));
-                    }
+                variants = gtReader.findVariants(chr, beg, end);
+                for (int i = 0; i < variants.size(); i++) {
+                    variants.get(i).setData(gtReader.convertToDouble(variants.get(i)));
+                    variantMap.put(variants.get(i).getPos() + "_" + new String(variants.get(i).getRefByte()) + "_" + new String(variants.get(i).getAltByte()), i);
                 }
             }
-        } else {
-            System.out.println("Not found: " + queryID);
-        }
-        return new org.mulinlab.variantsampler.utils.Pair<Integer[], org.mulinlab.variantsampler.utils.Pair<Integer, Integer>[]>(ldBuddies, posRange);
-    }
 
-    private double computeCorrelation(final double[] querySNPG, final double[] dbGenotypes) {
-        Pair<double[], double[]> filtered = stripmissing(querySNPG, dbGenotypes);
-        return correlate(filtered.getLeft(), filtered.getRight());
-    }
+            Integer q = variantMap.get(pos + "_" + ref + "_" + alt);
+            if(q != null) {
+                Variant query = variants.get(q);
+                javafx.util.Pair<Double, Double> ld;
+                resetLDBuddies();
 
-    public double correlate(double[] x, double[] y) {
-        if (x.length != y.length) {
-            System.out.println("Warning two arrays of non identical length are put in for correlation.");
-            System.out.println("Returning NaN");
-            return 0.0D / 0.0;
-        } else {
-            Pair<Double, Double> tmpMean = mean(x, y);
-            double meanX = (Double)tmpMean.getLeft();
-            double meanY = (Double)tmpMean.getRight();
-            double varX = 0.0D;
-            double varY = 0.0D;
-            double covarianceInterim = 0.0D;
+                for (int i = 0; i < variants.size(); i++) {
+                    if(i != q && (variants.get(i).getPos() > (query.getPos() - ldDistance) && variants.get(i).getPos() < (query.getPos() + ldDistance))) {
+                        ld = gtReader.computeLdLinear(variants.get(i).getData(), query.getData());
+                        if(ld.getKey() * ld.getKey() > cufoff) {
+                            addLDBuddies(ld.getKey() * ld.getKey(), variants.get(i));
+                        }
+                    }
+                }
 
-            for(int a = 0; a < x.length; ++a) {
-                double varXT = x[a] - meanX;
-                double varYT = y[a] - meanY;
-                covarianceInterim += varXT * varYT;
-                varX += varXT * varXT;
-                varY += varYT * varYT;
+                return new Pair<Integer[], Pair<Integer, Integer>[]>(ldBuddies, posRange);
+            } else {
+                System.out.println(chr + ":" + pos + " " + ref + "|" + alt);
+                return null;
             }
-
-            varY /= (double)(y.length - 1);
-            varX /= (double)(x.length - 1);
-            double denominator = Math.sqrt(varX * varY);
-            double covariance = covarianceInterim / (double)(x.length - 1);
-            double correlation = covariance / denominator;
-            return correlation;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
         }
     }
 
-    public Pair<Double, Double> mean(double[] v, double[] w) {
-        double sumV = 0.0D;
-        double sumW = 0.0D;
 
-        for(int k = 0; k < v.length; ++k) {
-            sumV += v[k];
-            sumW += w[k];
+    private void addLDBuddies(final double r2, final Variant variant) {
+        double index = r2*10 - 1;
+        for (int i = 8; i >= 0; i--) {
+            if(index > i) {
+                index = i;
+                break;
+            }
         }
-
-        return new Pair(sumV / (double)v.length, sumW / (double)v.length);
-    }
-
-    private void addLDBuddies(final double rsq, final Variant variant) {
-        int index = (int)(rsq * 10) - 1;
         if(index >= 0) {
             if(index > 8) index = 8;
-
             for (int i = 0; i <= index; i++) {
                 ldBuddies[i]++;
 
@@ -157,102 +132,7 @@ public final class LDComputer {
         }
     }
 
-    private String getID(final VCFVariant variant) {
-        return getID(variant.getChr(), variant.getPos(), StringUtil.join(",", variant.getAlleles() ));
-    }
-
-    private String getID(final String chr, final int pos, final String refalt) {
-        return String.format("%s_%d_%s", chr, pos, refalt);
-    }
-
-    private void removeUseless(final int pos) {
-        Iterator<Map.Entry<String, Variant>> iter = variantsMap.entrySet().iterator();
-
-        while (iter.hasNext()) {
-            Map.Entry<String,Variant> entry = iter.next();
-            if(entry.getValue().getPos() < (pos - distance)) {
-                iter.remove();
-            }
-        }
-    }
-
-    private void loadSNP(final String chr, final int pos) throws IOException {
-        final int begin = (pos - distance) > LAST_END ? (pos - distance) : (LAST_END - 1);
-        final int end = pos + distance;
-
-        eurReader.query(new LocFeature(begin, end, chr));
-        List<String> results = eurReader.getResults();
-
-        VCFVariant variant;
-        for (String s:results) {
-            variant = new VCFVariant(s, VCFVariant.PARSE.ALL);
-            variantsMap.put(getID(variant), new Variant(variant.getChr(), variant.getPos(), convertToDouble(variant)));
-        }
-
-        LAST_END = end;
-    }
-
-    private Pair<double[], double[]> stripmissing(double[] a, double[] b) {
-        boolean[] missing = new boolean[a.length];
-        int nrmissing = 0;
-        for (int i = 0; i < a.length; i++) {
-            if (a[i] == -1 || b[i] == -1) {
-                missing[i] = true;
-                nrmissing++;
-            }
-        }
-        if (nrmissing == 0) {
-            return new Pair<>(a, b);
-        } else {
-            double[] tmpa = new double[a.length - nrmissing];
-            double[] tmpb = new double[a.length - nrmissing];
-            int ctr = 0;
-            for (int i = 0; i < a.length; i++)
-                if (!missing[i]) {
-                    tmpa[ctr] = a[i];
-                    tmpb[ctr] = b[i];
-                    ctr++;
-                }
-
-            return new Pair<>(tmpa, tmpb);
-        }
-    }
-
-    private double[] convertToDouble(final VCFVariant vcfVariant) {
-        DoubleMatrix2D alleles = vcfVariant.getGenotypeAllelesAsMatrix2D();
-        double[] output = new double[alleles.rows()];
-        for (int i = 0; i < alleles.rows(); i++) {
-            if (alleles.getQuick(i, 0) == -1) {
-                output[i] = -1;
-            } else {
-                output[i] = (alleles.getQuick(i, 0) + alleles.getQuick(i, 1));
-            }
-        }
-
-        return output;
-    }
-
-    final class Variant {
-        final private String chr;
-        final private Integer pos;
-        final double[] matrix;
-
-        public Variant(String chr, Integer pos, double[] matrix) {
-            this.chr = chr;
-            this.pos = pos;
-            this.matrix = matrix;
-        }
-
-        public String getChr() {
-            return chr;
-        }
-
-        public Integer getPos() {
-            return pos;
-        }
-
-        public double[] getMatrix() {
-            return matrix;
-        }
+    public void setLdDistance(int ldDistance) {
+        this.ldDistance = ldDistance * 1000;
     }
 }

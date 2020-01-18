@@ -2,6 +2,8 @@ package org.mulinlab.variantsampler.utils;
 
 import org.mulinlab.variantsampler.utils.enumset.*;
 import org.mulinlab.varnote.constants.GlobalParameter;
+import org.mulinlab.varnote.operations.decode.TABLocCodec;
+import org.mulinlab.varnote.utils.format.Format;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -31,11 +33,16 @@ public final class GP {
     public static final int GENE_LD_SIZE = 9;
     public static final int LD_BUDDIES_SIZE = 9;
     public static final int ROADMAP_SIZE = 6;
+    public static final int GC_SIZE = 5;
 
     public static final int GENE_DIS_START = 6;
     public static final int GENE_LD_START = 16;
     public static final int LD_BUDDIES_START = 25;
     public static final int ROADMAP_START = 34;
+    public static final int CAT_START = 40;
+    public static final int TISSUE_START = 41;
+    public static final int GC_START = 42;
+
 
     public static final int RSID_IDX = 46;
     public static final int CHR_IDX = 0;
@@ -55,25 +62,68 @@ public final class GP {
     public static final int RANGE_STEP = 5000;
 
     public static final int NO_MARKER = -1;
+    public static final int NO_TISSUE = -1;
     public static final int NO_CELL_TYPE = -1;
     public static final int NO_GENE_DIS = -1;
+    public static final int NO_DTCT = -1;
     public static final int NO_GENE_LD = -1;
     public static final int NO_LD_BUDDIES = -1;
+    public static final int NO_GC = -1;
+
+    public static final int TISSUE_SIZE = 49;
 
     public static final GeneInDis DEFAULT_GENE_DIS = GeneInDis.KB500;
-    public static final LD DEFAULT_GENE_LD = LD.GT5;
-    public static final LD DEFAULT_LD_BUDDIES = LD.GT5;
+    public static final LD DEFAULT_GENE_LD = LD.LD5;
+    public static final LD DEFAULT_LD_BUDDIES = LD.LD5;
 
+    public static final MAFDeviation DEFAULT_MAF_DEVIATION = MAFDeviation.D5;
+    public static final int DEFAULT_DIS_DEVIATION = 5000;
+    public static final int DEFAULT_GENE_DEVIATION = 5;
+    public static final int DEFAULT_LD_BUDDIES_DEVIATION = 50;
+    public static final GCDeviation DEFAULT_GC_DEVIATION = GCDeviation.D5;
 
-    public static final MAFRange DEFAULT_MAF_RANGE = MAFRange.R5;
-    public static final int DEFAULT_DIS_RANGE = 5000;
-    public static final int DEFAULT_GENE_DIS_RANGE = 5;
-    public static final int DEFAULT_GENE_LD_RANGE = 5;
-    public static final int DEFAULT_LD_BUDDIES_RANGE = 50;
-
-    public static final String DEFAULT_OUT_SUFFIX = ".VariantSampler.txt";
+    public static final String ANNO_OUT = "anno.out.txt.gz";
+    public static final String SAMPLER_OUT = "sampler.out.txt.gz";
+    public static final String CONFIG_OUT = "sampler.config.txt";
+    public static final String INPUT_EXCLUDE_OUT = "input.exclude.txt";
 
     public static float readFloat(InputStream is) throws IOException {
         return Float.intBitsToFloat(GlobalParameter.readInt(is));
+    }
+
+    public final static String DTCT_HEADER = "DTCT";
+    public final static String GENE_DIS_HEADER = "Gene_Dis";
+    public final static String GENE_LD_HEADER = "Gene_LD";
+    public final static String LD_BUDDIES_HEADER = "LD_Buddies";
+
+    public final static String GC_HEADER = "GC_Content";
+    public final static String TISSUE_HEADER = "eQTL_in_Tissue";
+    public final static String VARIANT_REGION = "Variant_Region";
+
+    public static TABLocCodec getDefaultDecode(boolean isFull) {
+        Format format = Format.newTAB();
+        format.sequenceColumn = 1;
+        format.startPositionColumn = 2;
+        format.endPositionColumn = 2;
+        format.refPositionColumn = 3;
+        format.altPositionColumn = 4;
+        return new TABLocCodec(format, isFull);
+    }
+
+    public static long[] string2LongArr(String[] p) {
+        long[] longarr = new long[p.length];
+        for (int j = 0; j < p.length; j++) {
+            longarr[j] = Long.parseLong(p[j]);
+        }
+
+        return longarr;
+    }
+
+    public static int[] string2IntegerArr(String[] p) {
+        int[] intarr = new int[p.length];
+        for (int j = 0; j < p.length; j++) {
+            intarr[j] = Integer.parseInt(p[j]);
+        }
+        return intarr;
     }
 }

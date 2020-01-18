@@ -1,6 +1,7 @@
 package org.mulinlab.variantsampler.database;
 
 import htsjdk.tribble.util.ParsingUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.mulinlab.variantsampler.utils.GP;
 import org.mulinlab.variantsampler.utils.Pair;
 import org.mulinlab.variantsampler.utils.enumset.CellType;
@@ -78,16 +79,9 @@ public final class RoadmapAnnotation {
         return bits;
     }
 
-    public static int getValOfIndex(final long left, final long right, final int idx) {
-        return RoadmapAnnotation.getValOfIndex(new Pair<>(RoadmapAnnotation.convert(left), RoadmapAnnotation.convert(right)), idx) ? 1 : 0;
-    }
-
-    public static boolean getValOfIndex(final Pair<BitSet, BitSet> bitSet, final int idx) {
-        if(idx < GP.ROADMAP_LEFT) {
-            return bitSet.getKey().get(idx);
-        } else {
-            return bitSet.getValue().get(idx - GP.ROADMAP_LEFT);
-        }
+    public static boolean getValOfIndex(final long[] val, final int idx) {
+        BitSet bit = BitSet.valueOf(val);
+        return bit.get(idx);
     }
 
     public static long convert(final BitSet bits) {
@@ -98,25 +92,22 @@ public final class RoadmapAnnotation {
         return value;
     }
 
-    public Pair<Long, Long> compressOne(final Integer[] cells) {
-        BitSet left = new BitSet(GP.BITSET_SIZE), right = new BitSet(GP.BITSET_SIZE);
+    public long[] compress(final Integer[] cells) {
+        BitSet bitSet = new BitSet(cells.length);
 
-        for (int i = 0; i < GP.ROADMAP_LEFT; i++) {
-            if(cells[i] == 1) left.set(i);
-        }
-        for (int i = 0; i < GP.ROADMAP_RIGHE; i++) {
-            if(cells[i+GP.ROADMAP_LEFT] == 1) right.set(i);
+        for (int i = 0; i < cells.length; i++) {
+            if(cells[i] == 1) bitSet.set(i);
         }
 
-        return new Pair<>(convert(left), convert(right));
+        return bitSet.toLongArray();
     }
 
-    public Pair<Long, Long>[] compress() {
-        Pair<Long, Long>[] results = new Pair[markTypes.keySet().size()];
+    public long[][] compress() {
+        long[][] results = new long[markTypes.keySet().size()][];
 
         int index = 0;
         for (String mark:markTypes.keySet()) {
-            results[index++] = compressOne(markTypes.get(mark));
+            results[index++] = compress(markTypes.get(mark));
         }
         return results;
     }
@@ -140,7 +131,7 @@ public final class RoadmapAnnotation {
         roadReader.close();
     }
 
-    public Pair<Long, Long>[] query(final String chr, final int pos) throws IOException {
+    public long[][] query(final String chr, final int pos) throws IOException {
         clear();
 
         roadReader.query(new LocFeature(pos-1, pos, chr));

@@ -59,9 +59,16 @@ public final class Index {
 
                 gdSize = GlobalParameter.readInt(in);
                 for (int k = 0; k < gdSize; k++) {
-                    address.setRoadmapAnno(GlobalParameter.readLong(in, longbuf), k);
+                    address.setRoadmapAnnoAddress(GlobalParameter.readLong(in, longbuf), k);
                 }
 
+                address.setCatAddress(GlobalParameter.readLong(in, longbuf));
+                address.setTissueAddress(GlobalParameter.readLong(in, longbuf));
+
+                gdSize = GlobalParameter.readInt(in);
+                for (int k = 0; k < gdSize; k++) {
+                    address.setGcAddress(GlobalParameter.readLong(in, longbuf), k);
+                }
                 mafAddrsMap.put(address.getMaf(), address);
             }
 
@@ -71,6 +78,10 @@ public final class Index {
     }
 
     public MafAddress getMafAddress(final String chr, final int maf) {
-        return chrMap.get(Integer.parseInt(chr.toUpperCase().replace("CHR", ""))).get(maf);
+        return chrMap.get(chr2id(chr)).get(maf);
+    }
+
+    public int chr2id(final String chr) {
+        return Integer.parseInt(chr.toUpperCase().replace("CHR", ""));
     }
 }

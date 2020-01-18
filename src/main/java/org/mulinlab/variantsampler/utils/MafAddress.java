@@ -7,14 +7,18 @@ public final class MafAddress {
     private long[] geneLDAddress;
     private long[] ldBuddiesAddress;
 
-    private long[] roadmapAnno;
+    private long[] roadmapAnnoAddress;
+    private long catAddress;
+    private long tissueAddress;
+    private long[] gcAddress;
 
     public MafAddress(final int maf) {
         this.maf = maf;
-        geneDistanceAddress = new long[10];
-        geneLDAddress = new long[9];
-        ldBuddiesAddress = new long[9];
-        roadmapAnno = new long[6];
+        geneDistanceAddress = new long[GP.GENE_DIS_SIZE];
+        geneLDAddress = new long[GP.GENE_LD_SIZE];
+        ldBuddiesAddress = new long[GP.LD_BUDDIES_SIZE];
+        roadmapAnnoAddress = new long[GP.ROADMAP_SIZE];
+        gcAddress = new long[GP.GC_SIZE];
     }
 
     public long getMafAddress() {
@@ -49,12 +53,36 @@ public final class MafAddress {
         this.ldBuddiesAddress[index] = ldBuddiesAddress;
     }
 
-    public long[] getRoadmapAnno() {
-        return roadmapAnno;
+    public long[] getRoadmapAnnoAddress() {
+        return roadmapAnnoAddress;
     }
 
-    public void setRoadmapAnno(long roadmapAnno, final int index) {
-        this.roadmapAnno[index] = roadmapAnno;
+    public void setRoadmapAnnoAddress(long roadmapAnno, final int index) {
+        this.roadmapAnnoAddress[index] = roadmapAnno;
+    }
+
+    public long getCatAddress() {
+        return catAddress;
+    }
+
+    public void setCatAddress(long catAddress) {
+        this.catAddress = catAddress;
+    }
+
+    public long getTissueAddress() {
+        return tissueAddress;
+    }
+
+    public void setTissueAddress(long tissueAddress) {
+        this.tissueAddress = tissueAddress;
+    }
+
+    public long[] getGcAddress() {
+        return gcAddress;
+    }
+
+    public void setGcAddress(long gcAddress, final int index) {
+        this.gcAddress[index] = gcAddress;
     }
 
     public int getMaf() {
