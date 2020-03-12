@@ -70,26 +70,17 @@ jar {
                 'Main-Class': 'org.mulinlab.variantsampler.cmdline.JarCommadLine')
     }
 
-//    from {
-//        configurations.compile.collect { fileTree(dir: 'src/libs') }
-//        configurations.compile.collect { it.isDirectory() ? it : zipTree(it) }
-//    }
-//
-//    exclude 'log4j.properties'
-//    exclude '**/*.SF'
-//    exclude '**/*.RSA'
-
-    exclude 'log4j2.xml'
-}
-
-uploadArchives {
-    repositories.mavenDeployer {
-        snapshotRepository(url: "http://39.106.221.241:8081/repository/maven-snapshots") {//快照
-            authentication(userName: 'admin', password: 'admin123')
-        }
-        repository(url: "http://39.106.221.241:8081/repository/maven-releases") {//RELEASE
-            authentication(userName: 'admin', password: 'admin123')
-        }
+    from {
+        configurations.compile.collect { fileTree(dir: 'src/libs') }
+        configurations.compile.collect { it.isDirectory() ? it : zipTree(it) }
     }
+
+    exclude 'log4j.properties'
+    exclude '**/*.SF'
+    exclude '**/*.RSA'
+
+//    exclude 'log4j2.xml'
 }
+
+
 

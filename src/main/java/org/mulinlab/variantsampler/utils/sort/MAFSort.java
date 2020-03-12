@@ -7,6 +7,6 @@ import java.util.Comparator;
 public final class MAFSort implements Comparator<AbstractNode>  {
     public int compare(AbstractNode a, AbstractNode b)
     {
-        return (a.getMafOrg() < b.getMafOrg() ? -1 : (a.getMafOrg() == b.getMafOrg() ? 0 : 1));
+        return (a.mafOrg < b.mafOrg ? -1 : (a.mafOrg == b.mafOrg ? 0 : 1));
     }
 }

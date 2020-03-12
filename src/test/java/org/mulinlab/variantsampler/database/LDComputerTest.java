@@ -32,28 +32,4 @@ public class LDComputerTest {
         }
     }
 
-    @Test
-    public void genecodeFilter() throws IOException {
-        final String FILTER = "gene";
-        final String GENCODE_GTF = "/Users/hdd/Desktop/vanno/random/hg19/gencode.v32lift37.annotation.gtf.gz";
-        final NoFilterIterator reader = new NoFilterIterator(GENCODE_GTF, FileType.GZ);
-
-        final MyEndianOutputStream out = new MyEndianOutputStream(new MyBlockCompressedOutputStream(GENCODE_GTF.replace(".gtf.gz", ".gene.gtf.gz")));
-
-        String[] token;
-        String line, tss;
-
-        while (reader.hasNext()) {
-            line = reader.next();
-            if(line.startsWith("#")) continue;
-            token = line.split("\t");
-
-            if(token[2].trim().equals(FILTER)) {
-                out.writeBytes( line + "\n");
-            }
-        }
-
-        reader.close();
-        out.close();
-    }
 }

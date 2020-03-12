@@ -1,12 +1,16 @@
 package org.mulinlab.variantsampler.utils;
 
 import org.mulinlab.variantsampler.utils.enumset.*;
+import org.mulinlab.variantsampler.utils.node.Node;
 import org.mulinlab.varnote.constants.GlobalParameter;
 import org.mulinlab.varnote.operations.decode.TABLocCodec;
 import org.mulinlab.varnote.utils.format.Format;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Random;
 
 public final class GP {
     public final static String PRO_NAME = "VariantSampler";
@@ -74,7 +78,7 @@ public final class GP {
 
     public static final GeneInDis DEFAULT_GENE_DIS = GeneInDis.KB500;
     public static final LD DEFAULT_GENE_LD = LD.LD5;
-    public static final LD DEFAULT_LD_BUDDIES = LD.LD5;
+    public static final LD DEFAULT_IN_LD_VIRANTS = LD.LD5;
 
     public static final MAFDeviation DEFAULT_MAF_DEVIATION = MAFDeviation.D5;
     public static final int DEFAULT_DIS_DEVIATION = 5000;
@@ -82,8 +86,8 @@ public final class GP {
     public static final int DEFAULT_LD_BUDDIES_DEVIATION = 50;
     public static final GCDeviation DEFAULT_GC_DEVIATION = GCDeviation.D5;
 
-    public static final String ANNO_OUT = "anno.out.txt.gz";
-    public static final String SAMPLER_OUT = "sampler.out.txt.gz";
+    public static final String ANNO_OUT = "anno.out.txt";
+    public static final String SAMPLER_OUT = "sampler.out.txt";
     public static final String CONFIG_OUT = "sampler.config.txt";
     public static final String INPUT_EXCLUDE_OUT = "input.exclude.txt";
 
@@ -94,7 +98,7 @@ public final class GP {
     public final static String DTCT_HEADER = "DTCT";
     public final static String GENE_DIS_HEADER = "Gene_Dis";
     public final static String GENE_LD_HEADER = "Gene_LD";
-    public final static String LD_BUDDIES_HEADER = "LD_Buddies";
+    public final static String LD_BUDDIES_HEADER = "inLDvariants";
 
     public final static String GC_HEADER = "GC_Content";
     public final static String TISSUE_HEADER = "eQTL_in_Tissue";
@@ -125,5 +129,31 @@ public final class GP {
             intarr[j] = Integer.parseInt(p[j]);
         }
         return intarr;
+    }
+
+    public static int[] generateRandomArray(int max, int N, Random r) {
+        int[] samplerArr = new int[N];
+
+        int seedArray[] = new int[max];
+        for (int i = 0; i < max; i++) {
+            seedArray[i] = i;
+        }
+
+        int index = 0;
+        for(int i = 0; i < N; i++)
+        {
+            if(i == max) {
+                for (int j = 0; j < max; j++) {
+                    seedArray[j] = j;
+                }
+                i = 0;
+                N = N - max;
+            }
+            int seed = r.nextInt(max - i);
+            samplerArr[index++] = seedArray[seed];
+            seedArray[seed] = seedArray[max - i - 1];
+        }
+
+        return samplerArr;
     }
 }

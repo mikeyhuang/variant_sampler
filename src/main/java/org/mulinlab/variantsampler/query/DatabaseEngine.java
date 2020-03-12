@@ -1,9 +1,9 @@
 package org.mulinlab.variantsampler.query;
 
 import org.mulinlab.variantsampler.utils.GP;
+import org.mulinlab.variantsampler.utils.SamplerWrite;
 import org.mulinlab.variantsampler.utils.node.Node;
 import org.mulinlab.variantsampler.utils.QueryParam;
-import org.mulinlab.variantsampler.utils.sort.PosSort;
 import org.mulinlab.varnote.config.param.DBParam;
 import org.mulinlab.varnote.operations.decode.TABLocCodec;
 import org.mulinlab.varnote.operations.readers.db.VannoMixReader;
@@ -14,12 +14,12 @@ import org.mulinlab.varnote.utils.node.LocFeature;
 import java.io.IOException;
 import java.util.*;
 
-public final class DatabaseEngine {
-    private static final Random r = new Random();
+public class DatabaseEngine {
+    private static final int IN = Compare.IN;
 
-    private static final int LESS = 1;
-    private static final int IN = 2;
-    private static final int GREATER = 3;
+    private final Random r = new Random();
+    private final Compare compare;
+
 
     private static final int NO_MAF = -1;
     private final MafReader mafReader;
@@ -28,23 +28,32 @@ public final class DatabaseEngine {
     private final QueryParam queryParam;
     private final TABLocCodec tabLocCodec;
 
-    private Map<Integer, Map<Integer, List<Node>>> chrMafMap;
+    private Map<Integer, Map<Integer, Node[]>> chrMafMap;
     private boolean hasRefAlt = false;
     private InputStack inputStack;
+    private long[] results;
 
+    private int MAXLEN = 10000;
     public DatabaseEngine(final String dbPath, final InputStack inputStack, final QueryParam queryParam) throws IOException {
         final DBParam dbParam = new DBParam(dbPath);
-        dbParam.setIntersect(IntersectType.EXACT);
+        dbParam.setIntersect(IntersectType.INTERSECT);
 
         this.queryParam = queryParam;
         this.hasRefAlt = queryParam.getFormat().isRefAndAltExsit();
 
         this.reader = new VannoMixReader(DatabaseFactory.readDatabase(dbParam));
-        this.mafReader = new MafReader(dbPath);
+        this.mafReader = new MafReader(dbPath, hasRefAlt);
 
         this.tabLocCodec = GP.getDefaultDecode( false);
         this.chrMafMap = new HashMap<>();
         this.inputStack = inputStack;
+
+        if(queryParam.getRandomSeed() != -1) {
+            r.setSeed(queryParam.getRandomSeed());
+        }
+
+        results = new long[MAXLEN];
+        this.compare = new Compare();
     }
 
     public void close() throws IOException {
@@ -62,7 +71,7 @@ public final class DatabaseEngine {
         LocFeature match = null;
         for (LocFeature locFeature: querys) {
             match = null;
-            reader.query(locFeature);
+            reader.query(new LocFeature(locFeature.beg, locFeature.beg + 1, locFeature.chr));
 
             if(reader.getResults().size() > 0) {
                 match = getMatchAnno(reader.getResults(), locFeature);
@@ -70,7 +79,7 @@ public final class DatabaseEngine {
 
             if(match != null) {
                 node = new Node(match, queryParam);
-                maf = node.getMaf();
+                maf = node.maf;
             } else {
                 node = new Node(locFeature);
                 maf = NO_MAF;
@@ -79,7 +88,7 @@ public final class DatabaseEngine {
             if(map.get(maf) == null) {
                 mafList = new ArrayList<>();
             } else {
-                mafList = map.get(node.getMaf());
+                mafList = map.get(node.maf);
             }
             mafList.add(node);
             map.put(maf, mafList);
@@ -88,159 +97,213 @@ public final class DatabaseEngine {
         return map;
     }
 
-    public LocFeature getMatchAnno(List<String> results, LocFeature query) {
+    private LocFeature getMatchAnno(List<String> results, LocFeature query) {
         LocFeature db;
 
         for (String r:results) {
             db = tabLocCodec.decode(r);
-            if(hasRefAlt && db.beg == query.beg && db.end == query.end) {
-                return db;
-            } else {
-                if(queryParam.getFormat().isPos() && db.beg == query.beg) {
-                    return db;
-                } else if(db.beg == query.beg && db.end == query.end){
-                    return db;
-                }
-            }
+            if(InputStack.getValue(db, hasRefAlt) == query.end) return db;
         }
         return null;
     }
 
-    public List<Node> findList(final Map<Integer, List<Node>> querys) throws IOException{
-        List<Node> queryNodes = new ArrayList<>();
-
-        for (Integer maf: querys.keySet()) {
-            for (Node node: querys.get(maf)) {
-                findNode(node);
-                queryNodes.add(node);
-            }
-        }
-
-        Collections.sort(queryNodes, new PosSort());
-        return queryNodes;
-    }
-
-    public void findNode(final Node node) throws IOException{
-
-        if(node.isHasAnno() > 0) {
-            if(!queryParam.isCrossChr()) removeUselessChr(node.getChr());
-
-            ArrayList<Long> addressList = new ArrayList<>();
-            if(queryParam.isCrossChr()) {
-                for (String key: inputStack.getChrList()) {
-                    samplerInChr(key, node, addressList);
-                }
-            } else {
-                samplerInChr(node.getChr(), node, addressList);
-            }
-
-            ArrayList addressCopy = new ArrayList();
-            for (int i = 0; i < queryParam.getSamplerNumber(); i++) {
-                if(addressCopy.size() == 0) {
-                    addressCopy = (ArrayList)addressList.clone();
-                }
-                node.addResult(randomSelect(addressCopy));
-            }
-            node.setPoolSize( addressList.size());
-        }
-    }
-
-    public Node randomSelect(List<Long> addressCopy) throws IOException {
-        if(addressCopy.size() > 0)  {
-            final int index = r.nextInt(addressCopy.size());
-            final long addr = addressCopy.get(index);
-            addressCopy.remove(index);
-            return chrMafMap.get((int)(addr & 0xff)).get((int)((addr >> 8) & 0xff)).get((int)((addr >> 16) & 0xFFFFFFFFFFFFL));
+    public void findNode(Node node, SamplerWrite samplerWrite) throws IOException {
+        if (queryParam.isCrossChr()) {
+            findNodeCrossChr(node, samplerWrite);
         } else {
-            return null;
+            findNodeInChr(node, samplerWrite);
         }
     }
 
-    public void samplerInChr(String chr, Node node, List<Long> addressList) throws IOException {
-        Map<Integer, List<Node>> mafMap = chrMafMap.get(inputStack.chr2id(chr));
-        if(mafMap == null) mafMap = new HashMap<>();
+    public void findNodeCrossChr(Node node, SamplerWrite samplerWrite) throws IOException {
 
-        removeUselessMaf(node.getMaf());
+        int c = 0;
+        if(node.hasAnno > 0) {
+            compare.setQuery(node, queryParam);
+            for (int i = GP.FROM_CHROM; i <= GP.TO_CHROM ; i++) {
+                c = countInChr(i, node, c);
+            }
+        }
 
-        List<Node> nodes;
-        boolean match;
-        Node obj;
+        printQuery(node, c, samplerWrite);
+    }
 
-        for (int i = queryParam.getMafRangeMin(node.getMaf()); i <= queryParam.getMafRangeMax(node.getMaf()); i++) {
+    public void findNodeInChr(Node node, SamplerWrite samplerWrite) throws IOException {
+        int chrID = Integer.parseInt(node.getChr());
 
+        removeUselessChr(chrID);
+
+        int c = 0;
+        if(node.hasAnno > 0) {
+            compare.setQuery(node, queryParam);
+            c = countInChr(chrID, node, c);
+        }
+
+        printQuery(node, c, samplerWrite);
+    }
+
+    public int countInChr(Integer chr, Node query, int index) throws IOException {
+        Node[] dnNodes;
+        Node db;
+
+        Map<Integer, Node[]> mafMap = getMafMap(chr);
+        removeUselessMaf(query.maf);
+
+        for (int i = getMin(query.maf); i <= getMax(query.maf); i++) {
             if(mafMap.get(i) == null) {
-                mafMap.put(i, mafReader.loadMAF(chr, i, queryParam, inputStack));
+                mafMap.put(i, mafReader.loadMAF(String.valueOf(chr), i, queryParam, inputStack));
+                chrMafMap.put(chr, mafMap);
             }
 
-            nodes = mafMap.get(i);
-            if(nodes != null) {
-                for (int j = 0; j < nodes.size(); j++) {
-                    obj = nodes.get(j);
-                    match = true;
-                    if(node.isInQuery()) {
-                        continue;
-                    }
+            dnNodes = mafMap.get(i);
+            if(dnNodes != null) {
+                for (int j = 0; j < dnNodes.length; j++) {
+                    db = dnNodes[j];
 
-                    if(queryParam.isVariantTypeSpecific() && node.isIndel() != obj.isIndel()) {
-                        continue;
-                    }
-
-                    if(isInRangeMAFOri(node.getMafOrg(), obj.getMafOrg()) == IN) {
-                        if(queryParam.getDisRange() != null && isInRangeDistance(node.getDtct(), obj.getDtct()) != IN) {
-                            continue;
+                    if(isMatch(query, db)) {
+                        if(index == MAXLEN) {
+                            grow();
                         }
-                        if(queryParam.getGeneDisIndex() != GP.NO_GENE_DIS && isInRangeGene(node.getGeneDis(), obj.getGeneDis()) != IN) {
-                            continue;
-                        }
-                        if(queryParam.getGeneLDIndex() != GP.NO_GENE_LD && isInRangeGene(node.getGeneLD(), obj.getGeneLD()) != IN) {
-                            continue;
-                        }
-                        if(queryParam.getLdIndex() != GP.NO_LD_BUDDIES && isInRangeLDBuddies(node.getLdBuddies(), obj.getLdBuddies()) != IN) {
-                            continue;
-                        }
-                        if(queryParam.hasCellMarker() && (node.getRoadmap() != obj.getRoadmap())) {
-                            continue;
-                        }
-                        if(queryParam.isVariantTypeMatch() && (node.getCat() != obj.getCat())) {
-                            continue;
-                        }
-                        if(queryParam.getTissueIdx() != GP.NO_TISSUE && (node.isTissue() != obj.isTissue())) {
-                            continue;
-                        }
-                        if(queryParam.getGcRange() != null && isInRangeGC(node.getGc(), obj.getGc()) != IN) {
-                            continue;
-                        }
-                        if(match) {
-                            addressList.add(((long)j << 16) | (i << 8) | inputStack.chr2id(chr));
-                        }
+                        results[index++] = (((long)j << 16) | (i << 8) | chr);
                     }
                 }
             }
         }
-
-        chrMafMap.put(inputStack.chr2id(chr), mafMap);
+        return index;
     }
 
+    private void grow() {
+        int oldCapacity = MAXLEN;
+        int newCapacity = oldCapacity + (oldCapacity >> 1);
+        MAXLEN = newCapacity;
+        results = Arrays.copyOf(results, newCapacity);
+    }
 
-    public void removeUselessChr(final String chr) {
+    private void printQuery(Node q, int size, SamplerWrite samplerWrite) throws IOException {
+        int[] samplerArr = null;
+        if(size > 0) {
+            q.poolSize = size;
+            samplerArr = GP.generateRandomArray(size, queryParam.getSamplerNumber(), r);
+        }
+
+        if(q.hasAnno > 0) {
+            StringBuffer s = new StringBuffer();
+            s.append(q.poolSize + ":" + queryParam.getSamplerNumber());
+            s.append(GP.TAB);
+            s.append(q.briefQuery(hasRefAlt));
+            s.append(GP.TAB);
+            s.append(q.briefAnno());
+            s.append(GP.TAB);
+
+            samplerWrite.printAnno(q, SamplerWrite.QUERY);
+            for (int i = 1; i <= queryParam.getSamplerNumber(); i++) {
+                if(samplerArr == null) {
+                    s.append("-");
+                } else {
+                    int num = samplerArr[i-1];
+
+                    Node dbNode = getNodeByAddr(results[num]);
+                    s.append(dbNode.briefAnno());
+
+                    if(i <= queryParam.getAnnoNumber()) {
+                        printAnno(dbNode, i, samplerWrite);
+                    }
+                }
+
+                if(i < queryParam.getSamplerNumber()) {
+                    s.append(GP.TAB);
+                }
+            }
+            samplerWrite.printSampler(q, s.toString());
+        } else {
+            samplerWrite.printSampler(q, q.briefQuery(false));
+        }
+    }
+
+    public void printAnno(Node dbNode, int i, SamplerWrite samplerWrite) throws IOException {
+        samplerWrite.printAnno(dbNode, SamplerWrite.CONTROL + i);
+    }
+
+    private int getMin(int maf) {
+        return queryParam.getMafRangeMin(maf);
+    }
+
+    private int getMax(int maf) {
+        return queryParam.getMafRangeMax(maf);
+    }
+
+    private Map<Integer, Node[]> getMafMap(Integer chr) {
+        Map<Integer, Node[]> mafMap = chrMafMap.get(chr);
+        if(mafMap == null) {
+            return new HashMap<>();
+        } else {
+            return mafMap;
+        }
+    }
+
+    private boolean isMatch(Node q, Node db) {
+        if(db.isInQuery) {
+            return false;
+        }
+
+        if(queryParam.variantTypeSpecific && q.isIndel != db.isIndel) {
+            return false;
+        }
+
+        if(compare.isInRangeMAFOri(db.mafOrg) == IN) {
+            if(queryParam.getDisRange() != null && compare.isInRangeDistance(db.dtct) != IN) {
+                return false;
+            }
+            if(queryParam.geneDisIndex != GP.NO_GENE_DIS && compare.isInRangeGene(db.geneDis) != IN) {
+                return false;
+            }
+            if(queryParam.geneLDIndex != GP.NO_GENE_LD && compare.isInRangeGene(db.geneLD) != IN) {
+                return false;
+            }
+            if(queryParam.ldIndex != GP.NO_LD_BUDDIES && compare.isInRangeLDBuddies(db.ldBuddies) != IN) {
+                return false;
+            }
+            if(queryParam.hasCellMarker && (q.roadmap != db.roadmap)) {
+                return false;
+            }
+            if(queryParam.variantTypeMatch && (q.cat != db.cat)) {
+                return false;
+            }
+            if(queryParam.tissueIdx!= GP.NO_TISSUE && (q.tissue != db.tissue)) {
+                return false;
+            }
+            if(queryParam.gcRange != null && compare.isInRangeGC(db.gc) != IN) {
+                return false;
+            }
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    private Node getNodeByAddr(Long addr) throws IOException {
+        return chrMafMap.get((int)(addr & 0xff)).get((int)((addr >> 8) & 0xff))[(int)((addr >> 16) & 0xFFFFFFFFFFFFL)];
+    }
+
+    private void removeUselessChr(final Integer chr) {
         for (Integer key: chrMafMap.keySet()) {
-            if(key != inputStack.chr2id(chr)) {
+            if(key != chr) {
                 chrMafMap.put(key, null);
             }
         }
     }
 
-    public void removeUselessMaf(final int maf) {
-        Map<Integer, List<Node>> mafMap;
+    private void removeUselessMaf(final int maf) {
+        Map<Integer, Node[]> mafMap;
 
         for (Integer chr: chrMafMap.keySet()) {
 
             mafMap = chrMafMap.get(chr);
             if(mafMap != null) {
-                Iterator<Map.Entry<Integer, List<Node>>> iter = mafMap.entrySet().iterator();
+                Iterator<Map.Entry<Integer, Node[]>> iter = mafMap.entrySet().iterator();
 
                 while (iter.hasNext()) {
-                    Map.Entry<Integer, List<Node>> entry = iter.next();
+                    Map.Entry<Integer, Node[]> entry = iter.next();
                     if(isInRangeMAF(maf, entry.getKey()) != IN) {
                         iter.remove();
                     }
@@ -249,63 +312,16 @@ public final class DatabaseEngine {
         }
     }
 
-    public int isInRangeMAFOri(final double maf, final double dbmaf) {
-        if(dbmaf < queryParam.getMafOriRangeMin(maf)) {
-            return LESS;
-        } else if(dbmaf > queryParam.getMafOriRangeMax(maf)) {
-            return GREATER;
-        } else {
-            return IN;
-        }
-    }
-
-    public int isInRangeMAF(final Integer nodeMaf, final Integer dbmaf) {
+    private int isInRangeMAF(final int nodeMaf, final int dbmaf) {
         if(dbmaf < queryParam.getMafRangeMin(nodeMaf)) {
-            return LESS;
+            return Compare.LESS;
         } else if(dbmaf > queryParam.getMafRangeMax(nodeMaf)) {
-            return GREATER;
+            return Compare.GREATER;
         } else {
             return IN;
         }
     }
 
-    public int isInRangeGC(final Integer nodeGC, final Integer dbGC) {
-        if(dbGC < queryParam.getGCRangeMin(nodeGC)) {
-            return LESS;
-        } else if(dbGC > queryParam.getGCRangeMax(nodeGC)) {
-            return GREATER;
-        } else {
-            return IN;
-        }
-    }
 
-    public int isInRangeDistance(final Integer nodeDistance, final Integer dbDistance) {
-        if(dbDistance < queryParam.getDisRangeMin(nodeDistance)) {
-            return LESS;
-        } else if(dbDistance > queryParam.getDisRangeMax(nodeDistance)) {
-            return GREATER;
-        } else {
-            return IN;
-        }
-    }
 
-    public int isInRangeGene(final Integer gene, final Integer dbGene) {
-        if(dbGene < queryParam.getGeneRangeMin(gene)) {
-            return LESS;
-        } else if(dbGene > queryParam.getGeneDisRangeMax(gene)) {
-            return GREATER;
-        } else {
-            return IN;
-        }
-    }
-
-    public int isInRangeLDBuddies(final Integer ldBuddies, final Integer dbLDBuddies) {
-        if(dbLDBuddies < queryParam.getLDBuddiesRangeMin(ldBuddies)) {
-            return LESS;
-        } else if(dbLDBuddies > queryParam.getLDBuddiesRangeMax(ldBuddies)) {
-            return GREATER;
-        } else {
-            return IN;
-        }
-    }
 }

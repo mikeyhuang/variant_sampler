@@ -9,20 +9,22 @@ import java.util.*;
 public class InputStack {
 
     private List<String> chrList;
-    private Map<String, Integer> chr2idMap;
-    private Map<String, Map<Integer, Short>> inputs;
-    private Map<String, Map<Integer, List<Short>>> inputsMultiple;
+//    private Map<String, Integer> chr2idMap;
+    private Map<String, Map<Integer, Integer>> inputs;
+    private Map<String, Map<Integer, List<Integer>>> inputsMultiple;
 
     private int count = 0;
+    private final boolean hasRefAlt;
 
-    public InputStack(final LineFilterIterator iterator) {
+    public InputStack(final LineFilterIterator iterator, final boolean hasRefAlt) {
 
+        this.hasRefAlt = hasRefAlt;
         chrList = new ArrayList<>();
         inputs = new HashMap<>();
         inputsMultiple = new HashMap<>();
 
-        Map<Integer, Short> chrMap;
-        Map<Integer, List<Short>> chrMultiMap;
+        Map<Integer, Integer> chrMap;
+        Map<Integer, List<Integer>> chrMultiMap;
 
         LocFeature locFeature = null;
 
@@ -30,6 +32,7 @@ public class InputStack {
             locFeature = iterator.next();
 
             if(locFeature != null) {
+                locFeature.chr = locFeature.chr.toLowerCase().replace("chr", "");
                 count++;
 
                 if(inputs.get(locFeature.chr) == null) {
@@ -42,12 +45,12 @@ public class InputStack {
                 }
 
                 if(chrMap.get(locFeature.beg) == null) {
-                    chrMap.put(locFeature.beg, (short)(locFeature.end - locFeature.beg));
+                    chrMap.put(locFeature.beg, getValue(locFeature, hasRefAlt));
                 } else {
-                    List<Short> ends = chrMultiMap.get(locFeature.beg);
+                    List<Integer> ends = chrMultiMap.get(locFeature.beg);
                     if(ends == null) {
                         ends = new ArrayList<>();
-                        ends.add((short)(locFeature.end - locFeature.beg));
+                        ends.add(getValue(locFeature, hasRefAlt));
                     }
                     chrMultiMap.put(locFeature.beg, ends);
                 }
@@ -56,12 +59,28 @@ public class InputStack {
             }
         }
         Collections.sort(chrList);
-
-        chr2idMap = new HashMap<>();
-        for (int i = 0; i < chrList.size(); i++) {
-            chr2idMap.put(chrList.get(i), i);
-        }
+//
+//        chr2idMap = new HashMap<>();
+//        for (int i = 0; i < chrList.size(); i++) {
+//            chr2idMap.put(chrList.get(i), i);
+//        }
         iterator.close();
+    }
+
+    public static int getValue(final LocFeature locFeature, final boolean hasRefAlt) {
+        if(!hasRefAlt) {
+            return locFeature.end - locFeature.beg;
+        } else {
+            int baseCount = 0;
+            for (int i = 0; i < locFeature.ref.length(); i++) {
+                baseCount += (byte)locFeature.ref.charAt(i) * 2;
+            }
+
+            for (int i = 0; i < locFeature.alt.length(); i++) {
+                baseCount += (byte)locFeature.alt.charAt(i);
+            }
+            return baseCount;
+        }
     }
 
     public int getCount() {
@@ -69,17 +88,17 @@ public class InputStack {
     }
 
     public List<LocFeature> getLocFeatureForChr(final List<LocFeature> alllist, final String chr) {
-        Map<Integer, Short> locs = inputs.get(chr);
-        Map<Integer, List<Short>> mlocs = inputsMultiple.get(chr);
+        Map<Integer, Integer> locs = inputs.get(chr);
+        Map<Integer, List<Integer>> mlocs = inputsMultiple.get(chr);
 
         List<LocFeature> list = new ArrayList<>();
         for (Integer loc: locs.keySet()) {
-            list.add(new LocFeature(loc, loc + locs.get(loc), chr));
+            list.add(new LocFeature(loc,  locs.get(loc), chr));
         }
 
         for (Integer loc: mlocs.keySet()) {
-            for (Short end: mlocs.get(loc)) {
-                list.add(new LocFeature(loc, loc + end, chr));
+            for (Integer end: mlocs.get(loc)) {
+                list.add(new LocFeature(loc,  end, chr));
             }
         }
 
@@ -102,17 +121,21 @@ public class InputStack {
         return chrList;
     }
 
-    public boolean isNodeInQuery(Node node) {
+    public boolean isNodeInQuery(Node node, final boolean hasRefAlt) {
         LocFeature locFeature = node.getLocFeature();
-        Map<Integer, Short> chrMap = inputs.get(locFeature.chr);
-        Map<Integer, List<Short>> chrMultiMap = inputsMultiple.get(locFeature.chr);
-        if(chrMap.get(locFeature.beg) != null && chrMap.get(locFeature.beg) == (locFeature.end - locFeature.beg)) {
+        int val = getValue(locFeature, hasRefAlt);
+
+        Map<Integer, Integer> chrMap = inputs.get(locFeature.chr);
+        Map<Integer, List<Integer>> chrMultiMap = inputsMultiple.get(locFeature.chr);
+
+        if(chrMap != null && chrMap.get(locFeature.beg) != null && chrMap.get(locFeature.beg) == val) {
             return true;
         } else {
-            List<Short> ends = chrMultiMap.get(locFeature.beg);
+            if(chrMultiMap == null) return false;
+            List<Integer> ends = chrMultiMap.get(locFeature.beg);
             if(ends != null) {
-                for (Short end: ends) {
-                    if(end == (locFeature.end - locFeature.beg)) {
+                for (Integer end: ends) {
+                    if(end == val) {
                         return true;
                     }
                 }
@@ -123,7 +146,7 @@ public class InputStack {
         return false;
     }
 
-    public int chr2id(final String chr) {
-        return chr2idMap.get(chr);
-    }
+//    public int chr2id(final String chr) {
+//        return chr2idMap.get(chr);
+//    }
 }

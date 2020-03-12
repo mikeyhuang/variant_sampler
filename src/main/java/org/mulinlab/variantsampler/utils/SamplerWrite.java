@@ -23,7 +23,6 @@ public class SamplerWrite {
     private BufferedWriter inputExcludeOutput;
     private QueryParam queryParam;
     private boolean hasRefAlt = false;
-    private boolean hasJannovar = false;
     private String outputDir;
     private String outFolderName;
 
@@ -65,7 +64,7 @@ public class SamplerWrite {
     }
 
     public void printConfig(final String queryFile, final String dbFile) throws IOException {
-        printConfigLine("Query File: " + new File(queryFile).getName());
+        printConfigLine("Sampler File: " + new File(queryFile).getName());
         printConfigLine("Database File: " + new File(dbFile).getName());
         printConfigLine("");
 
@@ -83,9 +82,9 @@ public class SamplerWrite {
 
     public List<Log> toConfigArray() {
         List<Log> list = new ArrayList<>();
-        list.add(new Log(0, "isExcludeInput", "Exclude input SNPs", queryParam.isExcludeInput() + ""));
+        list.add(new Log(0, "isExcludeInput", "Exclude input SNPs", queryParam.excludeInput + ""));
         list.add(new Log(0, "isCrossChr", "Sampling across chromosomes", queryParam.isCrossChr() + ""));
-        list.add(new Log(0, "isVariantTypeSpecific", "Variant type specific", queryParam.isVariantTypeSpecific() + ""));
+        list.add(new Log(0, "isVariantTypeSpecific", "Variant type specific", queryParam.variantTypeSpecific + ""));
         list.add(new Log(0, "samplerNumber", "Sample control number", queryParam.getSamplerNumber() + ""));
         list.add(new Log(0, "annoNumber", "Annotation number", queryParam.getAnnoNumber() + ""));
 
@@ -94,31 +93,31 @@ public class SamplerWrite {
         if(queryParam.getDisRange() != null) {
             list.add(new Log(1, "dtct", "Distance to closest tss deviation", "[" + queryParam.getDisRange()[0] + ", " + queryParam.getDisRange()[1] + "]"));
         }
-        if(queryParam.getGeneDisIndex() != GP.NO_GENE_DIS) {
-            list.add(new Log(1, "GeneInDis", "Gene density in distance", GeneInDis.getVal(queryParam.getGeneDisIndex()).getTitle()));
+        if(queryParam.geneDisIndex != GP.NO_GENE_DIS) {
+            list.add(new Log(1, "GeneInDis", "Gene density in distance", GeneInDis.getVal(queryParam.geneDisIndex).getTitle()));
         }
-        if(queryParam.getGeneLDIndex() != GP.NO_GENE_LD) {
-            list.add(new Log(1, "GeneInLD", "Gene density in ld", LD.getVal(queryParam.getGeneLDIndex()).getTitle()));
+        if(queryParam.geneLDIndex != GP.NO_GENE_LD) {
+            list.add(new Log(1, "GeneInLD", "Gene density in ld", LD.getVal(queryParam.geneLDIndex).getTitle()));
         }
         if(queryParam.getGeneRange() != null) {
             list.add(new Log(1, "geneDeviation", "Gene density deviation", "[" + queryParam.getGeneRange()[0] + ", " + queryParam.getGeneRange()[1] + "]"));
         }
-        if(queryParam.getLdIndex() != GP.NO_LD_BUDDIES) {
-            list.add(new Log(1, "LDBuddies", "LD buddies", LD.getVal(queryParam.getLdIndex()).getTitle()));
+        if(queryParam.ldIndex != GP.NO_LD_BUDDIES) {
+            list.add(new Log(1, "LDBuddies", "in LD variants", LD.getVal(queryParam.ldIndex).getTitle()));
             list.add(new Log(1, "ldDeviation", "LD deviation", "[" + queryParam.getLdBuddiesRange()[0] + ", " + queryParam.getLdBuddiesRange()[1] + "]"));
         }
 
         if(queryParam.getGcRange() != null) {
-            list.add(new Log(1, "gcType", "GC Range", GCType.getVal(queryParam.getGcIdx()).getTitle()));
+            list.add(new Log(1, "gcType", "GC Range", GCType.getVal(queryParam.gcIdx).getTitle()));
             list.add(new Log(1, "gcDeviation", "GC deviation", "[" + queryParam.getGcRange()[0]/100 + ", " + queryParam.getGcRange()[1]/100 + "]"));
         }
 
-        list.add(new Log(1, "VariantRegion", "Variant Region Match", queryParam.isVariantTypeMatch() + ""));
-        if(queryParam.hasCellMarker()) {
-            list.add(new Log(1, "CellType", "Cell type-specific Epigenomic Marks:", CellType.getVal(queryParam.getCellIdx()).toString() + "|" + Marker.getVal(queryParam.getMarkerIndex()).toString()));
+        list.add(new Log(1, "VariantRegion", "Variant Region Match", queryParam.variantTypeMatch + ""));
+        if(queryParam.hasCellMarker) {
+            list.add(new Log(1, "CellType", "Cell type-specific Epigenomic Marks:", CellType.getVal(queryParam.cellIdx).toString() + "|" + Marker.getVal(queryParam.markerIndex).toString()));
         }
-        if(queryParam.getTissueIdx() > -1) {
-            list.add(new Log(1, "Tissue", "Tissue", TissueType.getVal(queryParam.getTissueIdx()).toString()));
+        if(queryParam.tissueIdx > -1) {
+            list.add(new Log(1, "Tissue", "Tissue", TissueType.getVal(queryParam.tissueIdx).toString()));
         }
 
 
@@ -172,26 +171,26 @@ public class SamplerWrite {
         if(queryParam.getDisRange() != null) {
             header += "\t" + GP.DTCT_HEADER;
         }
-        if(queryParam.getGeneDisIndex() != GP.NO_GENE_DIS) {
-            header += "\t" + GP.GENE_DIS_HEADER + "_" + GeneInDis.getVal(queryParam.getGeneDisIndex());
+        if(queryParam.geneDisIndex != GP.NO_GENE_DIS) {
+            header += "\t" + GP.GENE_DIS_HEADER + "_" + GeneInDis.getVal(queryParam.geneDisIndex);
         }
-        if(queryParam.getGeneLDIndex() != GP.NO_GENE_LD) {
-            header += "\t" + GP.GENE_LD_HEADER + "_" + LD.getVal(queryParam.getGeneLDIndex());
+        if(queryParam.geneLDIndex != GP.NO_GENE_LD) {
+            header += "\t" + GP.GENE_LD_HEADER + "_" + LD.getVal(queryParam.geneLDIndex);
         }
-        if(queryParam.getLdIndex() != GP.NO_LD_BUDDIES) {
-            header += "\t" + GP.LD_BUDDIES_HEADER + "_" + LD.getVal(queryParam.getLdIndex());
+        if(queryParam.ldIndex != GP.NO_LD_BUDDIES) {
+            header += "\t" + GP.LD_BUDDIES_HEADER + "_" + LD.getVal(queryParam.ldIndex);
         }
         if(queryParam.getGcRange() != null) {
-            header += "\t" + GP.GC_HEADER + "_" + GCType.getVal(queryParam.getGcIdx());
+            header += "\t" + GP.GC_HEADER + "_" + GCType.getVal(queryParam.gcIdx);
         }
-        if(queryParam.isVariantTypeMatch()) {
+        if(queryParam.variantTypeMatch) {
             header += "\t" + GP.VARIANT_REGION;
         }
-        if(queryParam.hasCellMarker()) {
-            header += "\t" + CellType.getVal(queryParam.getCellIdx()).toString() + "_" + Marker.getVal(queryParam.getMarkerIndex()).toString();
+        if(queryParam.hasCellMarker) {
+            header += "\t" + CellType.getVal(queryParam.cellIdx).toString() + "_" + Marker.getVal(queryParam.markerIndex).toString();
         }
-        if(queryParam.getTissueIdx() != GP.NO_TISSUE) {
-            header += "\t" + GP.TISSUE_HEADER + "_" + TissueType.getVal(queryParam.getTissueIdx());
+        if(queryParam.tissueIdx != GP.NO_TISSUE) {
+            header += "\t" + GP.TISSUE_HEADER + "_" + TissueType.getVal(queryParam.tissueIdx);
         }
 //        if(hasJannovar) {
 //            header += "\tVariant Effect\tGene Symbol\tGene ID";
@@ -199,62 +198,30 @@ public class SamplerWrite {
         return header;
     }
 
-    public void printSampler(final Node query) throws IOException {
-        if(query.isHasAnno() > 0) {
+    public void printSampler(final Node query, String line) throws IOException {
+        if(query.hasAnno > 0) {
             annoCount++;
-            List<String> r = new ArrayList<>();
-
-            if(query.getPoolSize() < queryParam.getSamplerNumber()) {
+            if(query.poolSize < queryParam.getSamplerNumber()) {
                 insufficientCount ++;
-                insuffPool.add(query.getPoolSize());
+                insuffPool.add(query.poolSize);
             }
-            r.add(query.getPoolSize() + ":" + queryParam.getSamplerNumber());
-            r.add(query.briefQuery(hasRefAlt));
-            r.add(query.briefAnno());
-
-            List<Node> result = query.getResults();
-            for (int i = 1; i <= queryParam.getSamplerNumber(); i++) {
-                if(result == null) {
-                    r.add("-");
-                } else {
-                    r.add(result.get(i-1) == null ? "-" : result.get(i-1).briefAnno());
-                }
-            }
-            this.samplerOutput.write(StringUtils.join(r, "\t"));
+            this.samplerOutput.write(line);
             this.samplerOutput.newLine();
         } else {
             excludedCount++;
-            this.inputExcludeOutput.write(query.briefQuery(hasRefAlt));
+            this.inputExcludeOutput.write(line);
             this.inputExcludeOutput.newLine();
         }
     }
+
 
     public void printAnno(final Node node, final String label) throws IOException {
         if(node == null) {
             annoOutput.write("Not found");
         } else {
-            String s = label + "\t" + node.toString(queryParam);
-
-//            if(hasJannovar) {
-//                s += "\t" + node.getVariantEffect().toString() + "\t" + node.getGeneSymbol() + "\t" + node.getGeneId();
-//            }
-            annoOutput.write(s);
+            annoOutput.write(label + "\t" + node.toString(queryParam));
         }
         annoOutput.newLine();
-    }
-
-    public void printNode(Node queryNode) throws IOException {
-        printSampler(queryNode);
-
-        if(queryNode.isHasAnno() > 0) {
-            printAnno(queryNode, QUERY);
-
-            if (queryNode.getResults() != null && queryNode.getResults().size() > 0) {
-                for (int i = 0; i < queryParam.getAnnoNumber(); i++) {
-                    printAnno(queryNode.getResults().get(i), CONTROL + (i + 1));
-                }
-            }
-        }
     }
 
     public void close() throws IOException {

@@ -134,8 +134,8 @@ public final class IndexMaf {
             out.writeInt(refalt.length());
             out.writeBytes(refalt);
 
-            out.writeInt(dbNode.getDtct());
-            out.writeFloat((float) dbNode.getMafOrg());
+            out.writeInt(dbNode.dtct);
+            out.writeFloat((float) dbNode.mafOrg);
         }
 
         for (int i=0; i<GP.GENE_DIS_SIZE; i++) {
@@ -223,7 +223,7 @@ public final class IndexMaf {
             dbNode = new DBNode(locFeature);
 
             if(!dbNode.getLocFeature().chr.equals(chr)) break;
-            if((dbNode.getMafOrg() > GP.MAF_FILTER) && (dbNode.getMaf() == maf)) {
+            if((dbNode.mafOrg > GP.MAF_FILTER) && (dbNode.maf == maf)) {
                 dbNode.setAddress(filePointer);
                 dbNode.decodeOthers();
                 mafList.add(dbNode);

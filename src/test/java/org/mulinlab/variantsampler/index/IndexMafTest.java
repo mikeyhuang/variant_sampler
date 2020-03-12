@@ -13,13 +13,13 @@ public class IndexMafTest {
 
     @Test
     public void getMafList() throws IOException {
-        IndexMaf indexMaf = new IndexMaf("/Users/hdd/Desktop/vanno/random/hg19/EUR.gz");
+        IndexMaf indexMaf = new IndexMaf("/hg19/EUR.gz");
 
     }
 
     @Test
     public void read() throws Exception {
-        BGZReader reader = new BGZReader("/Users/hdd/Desktop/vanno/random/hg19/EUR1.gz");
+        BGZReader reader = new BGZReader("/hg19/EUR1.gz");
         String s;
         String[] token;
 

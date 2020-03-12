@@ -4,11 +4,11 @@ import de.charite.compbio.jannovar.annotation.VariantEffect;
 import org.mulinlab.varnote.utils.node.LocFeature;
 
 public abstract class AbstractNode {
-    protected LocFeature locFeature;
-    protected String rsid;
-    protected int maf = -1;
-    protected double mafOrg = -1;
-    protected int dtct;
+    public LocFeature locFeature;
+    public String rsid;
+    public int maf = -1;
+    public double mafOrg = -1;
+    public int dtct;
 
     public LocFeature getLocFeature() {
         return locFeature;
@@ -26,29 +26,6 @@ public abstract class AbstractNode {
         this.rsid = rsid;
     }
 
-    public int getMaf() {
-        return maf;
-    }
-
-    public void setMaf(int maf) {
-        this.maf = maf;
-    }
-
-    public int getDtct() {
-        return dtct;
-    }
-
-    public void setDtct(int dtct) {
-        this.dtct = dtct;
-    }
-
-    public double getMafOrg() {
-        return mafOrg;
-    }
-
-    public void setMafOrg(double mafOrg) {
-        this.mafOrg = mafOrg;
-    }
 
     public String getChr() {
         return locFeature.chr;

@@ -11,16 +11,20 @@ public final class InputFileArgumentCollection {
 
     @Argument(
             fullName = Arguments.INTERSECT_INPUT_LONG, shortName = Arguments.INTERSECT_INPUT_SHORT,
-            doc = "Path of query file (support plain text or compressed files, including gzip and block gzip).\n\n" +
-                    "Possible Tags: {vcf, bed, tab} \n\n" +
-                    "Possible attributes for \"tab\" tag: {c, b, e, ref, alt, ci}\n" +
-                    "c: column of sequence name (1-based)\n" +
-                    "b: column of start chromosomal position (1-based)\n" +
-                    "e: column of end chromosomal position (1-based)\n" +
-                    "ref: column of reference allele\n" +
-                    "alt: column of alternative allele\n" +
-                    "0: specify the position in the data file is 0-based rather than 1-based\n" +
-                    "ci: comment indicator\n"
+            doc =  "Path of query file (support plain text and gzip compressed file).\n" +
+            "Possible Tags: {vcf, vcfLike, coordOnly, coordAllele, tab} \n\n" +
+
+            "Possible attributes for all tags: {sep, ci}\n" +
+            "Possible attributes for \"tab\" tag: {c, b, e, ref, alt, 0}\n\n" +
+
+            "c: column of sequence name (1-based)\n" +
+            "b: column of start chromosomal position (1-based)\n" +
+            "e: column of end chromosomal position (1-based)\n" +
+            "ref: column of reference allele\n" +
+            "alt: column of alternative allele\n" +
+            "0: specify the position in the data file is 0-based rather than 1-based\n" +
+            "sep: specifies the character that separates fields in file, possible values are: {TAB, COMMA}\n" +
+            "ci: comment indicator\n"
     )
     protected TagArgument queryFile = null;
 
@@ -33,7 +37,7 @@ public final class InputFileArgumentCollection {
     }
 
     public Format getFormat(final String queryFilePath, final boolean isQuery) {
-        Format format = queryFile.getFormat();
+        Format format = queryFile.getFormat(true);
 
         if(format == null) format = Format.defaultFormat(queryFilePath, isQuery);
         format = queryFile.setFormat(format);

@@ -22,7 +22,6 @@ import org.mulinlab.varnote.utils.jannovar.VariantAnnotation;
 import org.mulinlab.varnote.utils.node.LocFeature;
 import java.io.File;
 import java.io.IOException;
-import java.util.BitSet;
 import java.util.Map;
 
 
@@ -66,7 +65,7 @@ public final class DatabaseBuilder {
         DBParam dbParam = new DBParam(dbSource.getVal(DBSource.DB1000G));
         dbParam.setIndexType(IndexType.TBI);
         database = (TbiDatabase)DatabaseFactory.readDatabase(dbParam);
-        database.setVCFLocCodec(false, database.getVcfParser().getCodec());
+        database.setVCFLocCodec(false);
 
         index = (TbiIndex)database.getIndex();
 
@@ -159,7 +158,7 @@ public final class DatabaseBuilder {
         final LocFeature loc = dbNode.getLocFeature();
 
         out.writeBytes(String.format("%s\t%d\t%s\t%s\t%f\t%d\t%s\t%s\t%s\t", loc.chr, (loc.beg + 1), loc.ref,
-                loc.alt, dbNode.getMafOrg(), dbNode.getDtct(),
+                loc.alt, dbNode.mafOrg, dbNode.dtct,
                 StringUtils.join(dbNode.getGeneDensity(), TAB), StringUtils.join(dbNode.getGeneInLD(), TAB), StringUtils.join(dbNode.getLdBuddies(), TAB)));
         for (long[] cellType: dbNode.getCellMarks()) {
             out.writeBytes(StringUtils.join(cellType, ',') + TAB);

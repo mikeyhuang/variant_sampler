@@ -6,6 +6,6 @@ import java.util.Comparator;
 public final class DTCTSort implements Comparator<AbstractNode>  {
     public int compare(AbstractNode a, AbstractNode b)
     {
-        return (a.getDtct() < b.getDtct() ? -1 : (a.getDtct() == b.getDtct() ? 0 : 1));
+        return (a.dtct < b.dtct ? -1 : (a.dtct == b.dtct ? 0 : 1));
     }
 }

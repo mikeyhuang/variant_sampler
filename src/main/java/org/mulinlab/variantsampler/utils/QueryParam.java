@@ -10,10 +10,11 @@ import org.mulinlab.varnote.utils.format.Format;
 public final class QueryParam {
     private final Format format;
     private boolean crossChr = false;
-    private boolean excludeInput = true;
-    private boolean variantTypeSpecific = true;
+    public boolean excludeInput = true;
+    public boolean variantTypeSpecific = true;
     private int samplerNumber = 1;
     private int annoNumber = 1;
+    private int randomSeed = -1;
 
     private double[] mafOriRange;
     private int[] mafRange;
@@ -21,16 +22,17 @@ public final class QueryParam {
     private int[] geneRange;
     private int[] ldBuddiesRange;
 
-    private int geneDisIndex = GP.NO_GENE_DIS;
-    private int geneLDIndex = GP.NO_GENE_LD;
-    private int ldIndex = GP.NO_LD_BUDDIES;
-    private int markerIndex = GP.NO_MARKER;
-    private int cellIdx = GP.NO_CELL_TYPE;
-    private int gcIdx = GP.NO_GC;
+    public int geneDisIndex = GP.NO_GENE_DIS;
+    public int geneLDIndex = GP.NO_GENE_LD;
+    public int ldIndex = GP.NO_LD_BUDDIES;
+    public int markerIndex = GP.NO_MARKER;
+    public int cellIdx = GP.NO_CELL_TYPE;
+    public int gcIdx = GP.NO_GC;
 
-    private boolean variantTypeMatch = false;
-    private int tissueIdx = GP.NO_TISSUE;
-    private double[] gcRange;
+    public boolean hasCellMarker = false;
+    public boolean variantTypeMatch = false;
+    public int tissueIdx = GP.NO_TISSUE;
+    public int[] gcRange;
 
     public static QueryParam defaultQueryParam() {
         Format format = Format.newTAB();
@@ -64,7 +66,7 @@ public final class QueryParam {
         mafOriRange[1] = mafRangeEnum.getVal();
 
         mafRange = new int[2];
-        mafRange[0] = - (int)(mafOriRange[0] * 100);
+        mafRange[0] = (int)(mafOriRange[0] * 100);
         mafRange[1] = (int)(mafOriRange[1] * 100);
 
         if(disRange > -1) {
@@ -92,46 +94,19 @@ public final class QueryParam {
         }
 
         if(gcIdx > -1 && gcDeviation != null) {
-            this.gcRange = new double[2];
-            this.gcRange[0] = - gcDeviation.getVal() * 100;
-            this.gcRange[1] = gcDeviation.getVal() * 100;
+            this.gcRange = new int[2];
+            this.gcRange[0] = - (int)(gcDeviation.getVal() * 100);
+            this.gcRange[1] = (int)(gcDeviation.getVal() * 100);
         }
 
         this.variantTypeMatch = variantTypeMatch;
         this.tissueIdx = tissueIdx;
+
+        if(markerIndex != GP.NO_MARKER && cellIdx != GP.NO_CELL_TYPE) {
+            hasCellMarker = true;
+        }
     }
 
-    public boolean hasCellMarker() {
-        return markerIndex != GP.NO_MARKER && cellIdx != GP.NO_CELL_TYPE;
-    }
-
-    public void setMafRange(int[] mafRange) {
-        this.mafRange = mafRange;
-    }
-
-    public void setDisRange(int[] disRange) {
-        this.disRange = disRange;
-    }
-
-    public int getGeneDisIndex() {
-        return geneDisIndex;
-    }
-
-    public int getGeneLDIndex() {
-        return geneLDIndex;
-    }
-
-    public int getLdIndex() {
-        return ldIndex;
-    }
-
-    public int getMarkerIndex() {
-        return markerIndex;
-    }
-
-    public int getCellIdx() {
-        return cellIdx;
-    }
 
     public int getMafRangeMin(final int maf) {
         return (maf + mafRange[0]) >= 1 ? (maf + mafRange[0]) : 1;
@@ -149,10 +124,10 @@ public final class QueryParam {
         return (maf + mafOriRange[1]) <= 50 ? (maf + mafOriRange[1]) : 50;
     }
 
-    public double getGCRangeMin(final int gc) {
+    public int getGCRangeMin(final int gc) {
         return (gc + gcRange[0]) >= 1 ? (gc + gcRange[0]) : 1;
     }
-    public double getGCRangeMax(final int gc) {
+    public int getGCRangeMax(final int gc) {
         return (gc + gcRange[1]) <= 100 ? (gc + gcRange[1]) : 100;
     }
 
@@ -175,7 +150,7 @@ public final class QueryParam {
     public int getGeneRangeMin(final int geneDis) {
         return (geneDis + geneRange[0]) >= 0 ? (geneDis + geneRange[0]) : 0;
     }
-    public int getGeneDisRangeMax(final int geneDis) {
+    public int getGeneRangeMax(final int geneDis) {
         return geneDis + geneRange[1];
     }
 
@@ -206,17 +181,10 @@ public final class QueryParam {
         this.crossChr = crossChr;
     }
 
-    public boolean isExcludeInput() {
-        return excludeInput;
-    }
-
     public void setExcludeInput(boolean excludeInput) {
         this.excludeInput = excludeInput;
     }
 
-    public boolean isVariantTypeSpecific() {
-        return variantTypeSpecific;
-    }
 
     public void setVariantTypeSpecific(boolean variantTypeSpecific) {
         this.variantTypeSpecific = variantTypeSpecific;
@@ -244,34 +212,22 @@ public final class QueryParam {
         this.annoNumber = annoNumber;
     }
 
-    public boolean isVariantTypeMatch() {
-        return variantTypeMatch;
-    }
-
-    public void setVariantTypeMatch(boolean variantTypeMatch) {
-        this.variantTypeMatch = variantTypeMatch;
-    }
-
-    public int getTissueIdx() {
-        return tissueIdx;
-    }
-
-    public void setTissueIdx(int tissueIdx) {
-        this.tissueIdx = tissueIdx;
-    }
-
-    public double[] getGcRange() {
+    public int[] getGcRange() {
         return gcRange;
-    }
-
-    public int getGcIdx() {
-        return gcIdx;
     }
 
     public void setGcIdx(int gcIdx, GCDeviation gcDeviation) {
         this.gcIdx = gcIdx;
-        this.gcRange = new double[2];
+        this.gcRange = new int[2];
         this.gcRange[0] = - (int)(gcDeviation.getVal() * 100);
         this.gcRange[1] = (int)(gcDeviation.getVal() * 100);
+    }
+
+    public void setRandomSeed(int randomSeed) {
+        this.randomSeed = randomSeed;
+    }
+
+    public int getRandomSeed() {
+        return randomSeed;
     }
 }

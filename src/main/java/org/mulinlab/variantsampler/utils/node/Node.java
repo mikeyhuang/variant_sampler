@@ -4,31 +4,29 @@ import org.mulinlab.variantsampler.database.RoadmapAnnotation;
 import org.mulinlab.variantsampler.database.TissueAnnotation;
 import org.mulinlab.variantsampler.utils.GP;
 import org.mulinlab.variantsampler.utils.QueryParam;
-import org.mulinlab.variantsampler.utils.enumset.CellType;
-import org.mulinlab.variantsampler.utils.enumset.Marker;
 import org.mulinlab.variantsampler.utils.enumset.VariantRegion;
 import org.mulinlab.varnote.utils.node.LocFeature;
-import java.util.ArrayList;
 import java.util.List;
+
 
 public final class Node extends AbstractNode {
 
-    private int hasAnno = 1;
-    private List<Node> results;
+    public int hasAnno = 1;
+    public int geneDis;
+    public int geneLD;
+    public int ldBuddies;
+    public boolean roadmap;
+    public byte cat;
+    public boolean tissue;
+    public int gc;
 
-    private int geneDis;
-    private int geneLD;
-    private int ldBuddies;
-    private boolean roadmap;
-    private byte cat;
-    private boolean tissue;
-    private int gc;
-
-    private boolean isIndel = false;
-    private boolean isInQuery = false;
-    private int poolSize;
+    public boolean isIndel = false;
+    public boolean isInQuery = false;
+    public int poolSize = 0;
+    public List<Node> result;
 
     public Node() {
+        this.locFeature = null;
     }
 
     public Node(final LocFeature locFeature) {
@@ -41,7 +39,6 @@ public final class Node extends AbstractNode {
         this.isIndel = (this.locFeature.ref.length() != this.locFeature.alt.length());
 
         setOthers(locFeature.origStr.split("\t"), queryParam);
-        results = new ArrayList<>();
     }
 
     public void setLocFeature(LocFeature locFeature) {
@@ -54,40 +51,40 @@ public final class Node extends AbstractNode {
         maf = (int)(this.mafOrg * 100);
         dtct = Integer.parseInt(tokens[GP.DIS_IDX]);
 
-        if(queryParam.getGeneDisIndex() != GP.NO_GENE_DIS) {
-            geneDis = Integer.parseInt(tokens[GP.GENE_DIS_START + queryParam.getGeneDisIndex()]);
+        if(queryParam.geneDisIndex != GP.NO_GENE_DIS) {
+            geneDis = Integer.parseInt(tokens[GP.GENE_DIS_START + queryParam.geneDisIndex]);
         }
 
-        if(queryParam.getGeneLDIndex() != GP.NO_GENE_LD) {
-            geneLD = Integer.parseInt(tokens[GP.GENE_LD_START + queryParam.getGeneLDIndex()]);
+        if(queryParam.geneLDIndex != GP.NO_GENE_LD) {
+            geneLD = Integer.parseInt(tokens[GP.GENE_LD_START + queryParam.geneLDIndex]);
         }
 
-        if(queryParam.getLdIndex() != GP.NO_LD_BUDDIES) {
-            ldBuddies = Integer.parseInt(tokens[GP.LD_BUDDIES_START + queryParam.getLdIndex()]);
+        if(queryParam.ldIndex != GP.NO_LD_BUDDIES) {
+            ldBuddies = Integer.parseInt(tokens[GP.LD_BUDDIES_START + queryParam.ldIndex]);
         }
 
-        if(queryParam.hasCellMarker()) {
-            if(tokens[ GP.ROADMAP_START + queryParam.getMarkerIndex()].trim().length() > 0) {
-                roadmap = RoadmapAnnotation.getValOfIndex(GP.string2LongArr(tokens[queryParam.getMarkerIndex() + GP.ROADMAP_START].split(",")), queryParam.getCellIdx());
+        if(queryParam.hasCellMarker) {
+            if(tokens[ GP.ROADMAP_START + queryParam.markerIndex].trim().length() > 0) {
+                roadmap = RoadmapAnnotation.getValOfIndex(GP.string2LongArr(tokens[queryParam.markerIndex + GP.ROADMAP_START].split(",")), queryParam.cellIdx);
             } else {
                 roadmap = false;
             }
         }
 
-        if(queryParam.isVariantTypeMatch()) {
+        if(queryParam.variantTypeMatch) {
             cat = (byte)Integer.parseInt(tokens[GP.CAT_START]);
         }
 
-        if(queryParam.getTissueIdx() != GP.NO_TISSUE) {
+        if(queryParam.tissueIdx != GP.NO_TISSUE) {
             if(tokens[GP.TISSUE_START].trim().length() > 0) {
-                tissue = TissueAnnotation.getValOfIndex(new long[]{Long.parseLong(tokens[GP.TISSUE_START])}, queryParam.getTissueIdx());
+                tissue = TissueAnnotation.getValOfIndex(new long[]{Long.parseLong(tokens[GP.TISSUE_START])}, queryParam.tissueIdx);
             } else {
                 tissue = false;
             }
         }
 
-        if(queryParam.getGcIdx() != GP.NO_GC) {
-            gc = GP.string2IntegerArr(tokens[GP.GC_START].split(","))[queryParam.getGcIdx()];
+        if(queryParam.gcIdx != GP.NO_GC) {
+            gc = GP.string2IntegerArr(tokens[GP.GC_START].split(","))[queryParam.gcIdx];
         }
 
         locFeature.parts = null;
@@ -120,115 +117,21 @@ public final class Node extends AbstractNode {
         }
 
         if( queryParam.getDisRange() != null) s += "\t" + ((hasAnno == 0) ? "-" : dtct);
-        if( queryParam.getGeneDisIndex() != GP.NO_GENE_DIS) s += "\t" + ((hasAnno == 0)? "-" : geneDis);
-        if( queryParam.getGeneLDIndex() != GP.NO_GENE_LD) s += "\t" + ((hasAnno == 0) ? "-" : geneLD);
-        if( queryParam.getLdIndex() != GP.NO_LD_BUDDIES) s += "\t" + ((hasAnno == 0) ? "-" : ldBuddies);
-        if(queryParam.getGcIdx() != GP.NO_GC) {
+        if( queryParam.geneDisIndex != GP.NO_GENE_DIS) s += "\t" + ((hasAnno == 0)? "-" : geneDis);
+        if( queryParam.geneLDIndex != GP.NO_GENE_LD) s += "\t" + ((hasAnno == 0) ? "-" : geneLD);
+        if( queryParam.ldIndex != GP.NO_LD_BUDDIES) s += "\t" + ((hasAnno == 0) ? "-" : ldBuddies);
+        if(queryParam.gcIdx != GP.NO_GC) {
             s += "\t" + ((hasAnno == 0) ? "-" : gc + "%");
         }
-        if(queryParam.isVariantTypeMatch()) {
+        if(queryParam.variantTypeMatch) {
             s += "\t" + ((hasAnno == 0) ? "-" : VariantRegion.getVal(cat));
         }
-        if( queryParam.hasCellMarker()) s += "\t" + ((hasAnno == 0) ? "-" : roadmap);
-        if(queryParam.getTissueIdx() != GP.NO_TISSUE) {
+        if( queryParam.hasCellMarker) s += "\t" + ((hasAnno == 0) ? "-" : roadmap);
+        if(queryParam.tissueIdx != GP.NO_TISSUE) {
             s += "\t" + ((hasAnno == 0) ? "-" : tissue);
         }
         return s;
     }
 
-    public void setGeneDis(int geneDis) {
-        this.geneDis = geneDis;
-    }
 
-    public void setGeneLD(int geneLD) {
-        this.geneLD = geneLD;
-    }
-
-    public void setLdBuddies(int ldBuddies) {
-        this.ldBuddies = ldBuddies;
-    }
-
-    public List<Node> getResults() {
-        return results;
-    }
-
-    public void addResult(Node result) {
-        this.results.add(result);
-    }
-
-    public int getGeneDis() {
-        return geneDis;
-    }
-
-    public int getGeneLD() {
-        return geneLD;
-    }
-
-    public int getLdBuddies() {
-        return ldBuddies;
-    }
-
-    public boolean getRoadmap() {
-        return roadmap;
-    }
-
-    public void setRoadmap(boolean roadmap) {
-        this.roadmap = roadmap;
-    }
-
-    public int isHasAnno() {
-        return hasAnno;
-    }
-
-    public void setHasAnno(int hasAnno) {
-        this.hasAnno = hasAnno;
-    }
-
-    public int getPoolSize() {
-        return poolSize;
-    }
-
-    public void setPoolSize(int poolSize) {
-        this.poolSize = poolSize;
-    }
-
-    public boolean isIndel() {
-        return isIndel;
-    }
-
-    public void setIndel(boolean indel) {
-        isIndel = indel;
-    }
-
-    public boolean isInQuery() {
-        return isInQuery;
-    }
-
-    public void setInQuery(boolean inQuery) {
-        isInQuery = inQuery;
-    }
-
-    public byte getCat() {
-        return cat;
-    }
-
-    public void setCat(byte cat) {
-        this.cat = cat;
-    }
-
-    public boolean isTissue() {
-        return tissue;
-    }
-
-    public void setTissue(boolean tissue) {
-        this.tissue = tissue;
-    }
-
-    public int getGc() {
-        return gc;
-    }
-
-    public void setGc(int gc) {
-        this.gc = gc;
-    }
 }
